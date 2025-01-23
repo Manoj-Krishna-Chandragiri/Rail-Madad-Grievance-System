@@ -5,7 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import AIAssistance from './pages/AIAssistance';
-import FileComplaint from './pages/FileComplaint';
+import FileComplaint from './pages/FileComplaint.tsx';
 import SmartClassification from './pages/SmartClassification';
 import RealTimeSupport from './pages/RealTimeSupport';
 import QuickResolution from './pages/QuickResolution';
@@ -14,6 +14,7 @@ import TrackStatus from './pages/TrackStatus';
 import Staff from './pages/Staff';
 import Settings from './pages/Settings';
 import Help from './pages/Help';
+import FeedbackForm from './pages/FeedbackForm.tsx';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -47,6 +48,7 @@ const App = () => {
               <Route path="staff" element={<Staff />} />
               <Route path="settings" element={<Settings />} />
               <Route path="help" element={<Help />} />
+              <Route path="feedback-form" element={<FeedbackForm />} />
             </Route>
           </Routes>
         </Router>
