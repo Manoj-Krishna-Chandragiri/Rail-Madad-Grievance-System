@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GoogleIcon from '../components/icons/GoogleIcon';
 import { useTheme } from '../context/ThemeContext';
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
+import { getFirestore, setDoc, doc } from "firebase/firestore";
 
 interface SignUpData {
   name: string;
@@ -58,6 +61,27 @@ const PasswordInput: React.FC<PasswordInputProps> = ({ value, onChange, label, r
   );
 };
 
+const firebaseConfig = {
+  apiKey: "AIzaSyAeP3pD8WZkil9h-Z06_WLtEJgmC6rRFko",
+  authDomain: "railmadad-login.firebaseapp.com",
+  projectId: "railmadad-login",
+  storageBucket: "railmadad-login.appspot.com",
+  messagingSenderId: "914935310403",
+  appId: "1:914935310403:web:edc5a318f2d9c9e9df8cf6"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth();
+const db = getFirestore();
+
+const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>) => {
+  setError(message);
+  setTimeout(() => {
+    setError('');
+  }, 5000);
+};
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -76,23 +100,54 @@ const Login: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'manojkrishnachandragiri@gmail.com' && password === '123456789') {
-      localStorage.setItem('isAuthenticated', 'true');
-      navigate('/');
-    } else {
-      setError('Invalid email or password');
-    }
+
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        showMessage('Login is successful', setError);
+        const user = userCredential.user;
+        localStorage.setItem('isAuthenticated', 'true');
+        navigate('/');
+      })
+      .catch((error) => {
+        const errorCode = error.code;
+        if (errorCode === 'auth/invalid-credential') {
+          showMessage('Incorrect Email or Password', setError);
+        } else {
+          showMessage('Account does not exist', setError);
+        }
+      });
   };
 
   const handleGoogleSignIn = () => {
-    console.log('Google Sign In');
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider)
+      .then((result) => {
+        const user = result.user;
+        localStorage.setItem('isAuthenticated', 'true');
+        navigate('/');
+      })
+      .catch((error) => {
+        const errorMessage = error.message;
+        if (error.code === 'auth/operation-not-allowed') {
+          showMessage('Google Sign-In is not enabled. Please enable it in Firebase Authentication settings.', setError);
+        } else {
+          console.error("Error during Google Sign-In", error);
+          showMessage('Google Sign-In failed: ' + errorMessage, setError);
+        }
+      });
   };
 
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Reset password for:', resetEmail);
-    setShowForgotPassword(false);
-    setError('Password reset link sent to your email');
+    sendPasswordResetEmail(auth, resetEmail)
+      .then(() => {
+        setShowForgotPassword(false);
+        setError('Password reset link sent to your email');
+      })
+      .catch((error) => {
+        console.error("Error sending password reset email", error);
+        showMessage('Failed to send password reset email', setError);
+      });
   };
 
   const handleSignUp = (e: React.FormEvent) => {
@@ -101,9 +156,34 @@ const Login: React.FC = () => {
       setError('Passwords do not match');
       return;
     }
-    console.log('Sign up data:', signUpData);
-    setShowSignUp(false);
-    setError('Account created successfully! Please sign in.');
+
+    createUserWithEmailAndPassword(auth, signUpData.email, signUpData.password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        const userData = {
+          email: signUpData.email,
+          name: signUpData.name
+        };
+        showMessage('Account Created Successfully', setError);
+        const docRef = doc(db, "users", user.uid);
+        setDoc(docRef, userData)
+          .then(() => {
+            setShowSignUp(false);
+            setError('Account created successfully! Please sign in.');
+          })
+          .catch((error) => {
+            console.error("Error writing document", error);
+            showMessage('Unable to create user', setError);
+          });
+      })
+      .catch((error) => {
+        const errorCode = error.code;
+        if (errorCode === 'auth/email-already-in-use') {
+          showMessage('Email Address Already Exists !!!', setError);
+        } else {
+          showMessage('Unable to create user', setError);
+        }
+      });
   };
 
   return (

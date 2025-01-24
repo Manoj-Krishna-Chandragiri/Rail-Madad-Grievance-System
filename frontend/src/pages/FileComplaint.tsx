@@ -10,7 +10,8 @@ const FileComplaint = () => {
     location: '',
     trainNumber: '',
     pnrNumber: '',
-    severity: 'Medium'
+    severity: 'Medium',
+    dateOfIncident: '' // Add dateOfIncident to formData
   });
 
   const [photos, setPhotos] = useState<File[]>([]);
@@ -132,6 +133,21 @@ const FileComplaint = () => {
               placeholder="Enter location or coach details"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
                 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300'}`}
+              required
+            />
+          </div>
+
+          <div>
+            <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+              Date of Incident
+            </label>
+            <input
+              type="date"
+              name="dateOfIncident"
+              value={formData.dateOfIncident}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
               required
             />
           </div>
