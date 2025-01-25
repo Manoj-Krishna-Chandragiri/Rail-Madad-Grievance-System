@@ -78,7 +78,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+initializeApp(firebaseConfig);
 const auth = getAuth();
 const db = getFirestore();
 
@@ -115,7 +115,7 @@ const Login: React.FC = () => {
     e.preventDefault();
 
     signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
+      .then(() => {
         setMessageType(showMessage('Login successful!', setError, 'success'));
         localStorage.setItem('isAuthenticated', 'true');
         navigate('/');
@@ -133,8 +133,7 @@ const Login: React.FC = () => {
   const handleGoogleSignIn = () => {
     const provider = new GoogleAuthProvider();
     signInWithPopup(auth, provider)
-      .then((result) => {
-        const user = result.user;
+      .then(() => {
         localStorage.setItem('isAuthenticated', 'true');
         navigate('/');
       })
@@ -156,7 +155,7 @@ const Login: React.FC = () => {
         setShowForgotPassword(false);
         setMessageType(showMessage('Password reset link sent to your email', setError, 'success'));
       })
-      .catch((error) => {
+      .catch(() => {
         setMessageType(showMessage('Failed to send password reset email', setError, 'error'));
       });
   };
@@ -186,7 +185,7 @@ const Login: React.FC = () => {
             setShowSignUp(false);
             setMessageType(showMessage('Account created successfully! Please sign in.', setError, 'success'));
           })
-          .catch((error) => {
+          .catch(() => {
             setMessageType(showMessage('Unable to create user', setError, 'error'));
           });
       })
@@ -246,7 +245,7 @@ const Login: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
-                      Email address
+                      Email adress
                     </label>
                     <input
                       type="email"
