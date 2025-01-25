@@ -2,15 +2,33 @@ import { Bot, MessageCircle, Loader } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
+interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+const SYSTEM_PROMPT = `You are a helpful AI assistant for Rail Madad, an Indian Railways complaint management system. Your role is to:
+1. Help passengers with their railway-related queries and complaints
+2. Provide information about using the Rail Madad application
+3. Guide users on how to register complaints
+4. Explain the complaint tracking process
+5. Provide relevant contact information when needed
+6. Be polite, professional, and concise in your responses
+
+Keep responses focused on Indian Railways and Rail Madad services. If asked about anything unrelated, politely redirect to railway-related topics.`;
+
 const AIAssistance = () => {
   const { theme } = useTheme();
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hello! How can I assist you with your railway-related concerns today?' }
+  const [message, setMessage] = useState<string>('');
+  const [messages, setMessages] = useState<Message[]>([
+    { 
+      role: 'assistant', 
+      content: 'Hello! I\'m your Rail Madad assistant. How can I help you with your railway-related concerns today?' 
+    }
   ]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!message.trim()) return;
 
@@ -18,13 +36,54 @@ const AIAssistance = () => {
     setMessage('');
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyAqZM-UDBhmEA5xSTGE6Vufn3I1P0HvpkI`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              role: "user",
+              parts: [{
+                text: `${SYSTEM_PROMPT}\n\nUser: ${message}`
+              }]
+            }]
+          })
+        }
+      );
+
+      const data = await response.json();
+      console.log('Gemini API Response:', data); // For debugging
+
+      if (response.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: aiResponse 
+        }]);
+      } else {
+        console.error('API Error Response:', data);
+        let errorMessage = 'An error occurred while processing your request.';
+        if (data.error) {
+          errorMessage = `Error: ${data.error.message || data.error.status}`;
+        }
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: errorMessage
+        }]);
+      }
+    } catch (error) {
+      console.error('Error fetching AI response:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'I understand your concern. Let me help you with that. What specific details can you provide about the issue?' 
+        content: 'Network error occurred. Please check your connection and try again.' 
       }]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
