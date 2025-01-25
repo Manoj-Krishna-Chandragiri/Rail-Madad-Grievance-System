@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { getAuth, onAuthStateChanged, updateProfile } from 'firebase/auth';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, updateProfile, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { getFirestore, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
@@ -20,6 +21,7 @@ interface UserData {
 
 const Profile = () => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +29,9 @@ const Profile = () => {
   const [updating, setUpdating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageError, setImageError] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const auth = getAuth();
   const db = getFirestore();
   const storage = getStorage();
@@ -209,6 +214,32 @@ const Profile = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      // Re-authenticate user before deletion
+      const credential = EmailAuthProvider.credential(
+        auth.currentUser.email!,
+        password
+      );
+      await reauthenticateWithCredential(auth.currentUser, credential);
+
+      // Delete user data from Firestore
+      await deleteDoc(doc(db, "users", auth.currentUser.uid));
+
+      // Delete user account
+      await deleteUser(auth.currentUser);
+
+      // Clear local storage and redirect
+      localStorage.removeItem('isAuthenticated');
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      setError(error.message || 'Failed to delete account');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -377,6 +408,63 @@ const Profile = () => {
                   </button>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h2 className={`text-xl font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            Danger Zone
+          </h2>
+          <div className={`p-4 border border-red-500 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+            <h3 className="text-red-500 font-semibold mb-2">Delete Account</h3>
+            <p className={`mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+              Once you delete your account, there is no going back. Please be certain.
+            </p>
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+              >
+                Delete Account
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <input
+                  type="password"
+                  placeholder="Enter your password to confirm"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg ${
+                    theme === 'dark'
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {error && <p className="text-red-500 text-sm">{error}</p>}
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleDeleteAccount}
+                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  >
+                    Confirm Delete
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setPassword('');
+                      setError('');
+                    }}
+                    className={`px-4 py-2 rounded border ${
+                      theme === 'dark'
+                        ? 'border-gray-600 hover:bg-gray-700'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

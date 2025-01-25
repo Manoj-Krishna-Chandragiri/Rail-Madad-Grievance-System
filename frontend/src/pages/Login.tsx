@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import GoogleIcon from '../components/icons/GoogleIcon';
 import { useTheme } from '../context/ThemeContext';
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
 import { getFirestore, setDoc, doc } from "firebase/firestore";
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
@@ -111,23 +111,28 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    signInWithEmailAndPassword(auth, email, password)
-      .then(() => {
-        setMessageType(showMessage('Login successful!', setError, 'success'));
-        localStorage.setItem('isAuthenticated', 'true');
-        navigate('/');
-      })
-      .catch((error) => {
-        const errorCode = error.code;
-        if (errorCode === 'auth/invalid-credential') {
-          setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
-        } else {
-          setMessageType(showMessage('Account does not exist', setError, 'error'));
-        }
-      });
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (!user.emailVerified) {
+        setMessageType(showMessage('Please verify your email before signing in. Check your inbox.', setError, 'error'));
+        return;
+      }
+
+      setMessageType(showMessage('Login successful!', setError, 'success'));
+      localStorage.setItem('isAuthenticated', 'true');
+      navigate('/');
+    } catch (error: any) {
+      if (error.code === 'auth/invalid-credential') {
+        setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
+      } else {
+        setMessageType(showMessage('Account does not exist', setError, 'error'));
+      }
+    }
   };
 
   const handleGoogleSignIn = () => {
@@ -160,43 +165,46 @@ const Login: React.FC = () => {
       });
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (signUpData.password !== signUpData.confirmPassword) {
       setMessageType(showMessage('Passwords do not match', setError, 'error'));
       return;
     }
 
-    createUserWithEmailAndPassword(auth, signUpData.email, signUpData.password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-        const userData = {
-          email: signUpData.email,
-          name: signUpData.name,
-          phoneNumber: signUpData.phoneNumber,
-          gender: signUpData.gender,
-          address: signUpData.address,
-          profileImage: signUpData.gender === 'male' ? MALE_DEFAULT_AVATAR : FEMALE_DEFAULT_AVATAR
-        };
-        setMessageType(showMessage('Account Created Successfully!', setError, 'success'));
-        const docRef = doc(db, "users", user.uid);
-        setDoc(docRef, userData)
-          .then(() => {
-            setShowSignUp(false);
-            setMessageType(showMessage('Account created successfully! Please sign in.', setError, 'success'));
-          })
-          .catch(() => {
-            setMessageType(showMessage('Unable to create user', setError, 'error'));
-          });
-      })
-      .catch((error) => {
-        const errorCode = error.code;
-        if (errorCode === 'auth/email-already-in-use') {
-          setMessageType(showMessage('Email Address Already Exists!', setError, 'error'));
-        } else {
-          setMessageType(showMessage('Unable to create user', setError, 'error'));
-        }
-      });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        signUpData.email, 
+        signUpData.password
+      );
+      const user = userCredential.user;
+
+      // Send email verification
+      // Send email verification
+      await sendEmailVerification(user);
+      // Save user data to Firestore
+      const userData = {
+        email: signUpData.email,
+        name: signUpData.name,
+        phoneNumber: signUpData.phoneNumber,
+        gender: signUpData.gender,
+        address: signUpData.address,
+        profileImage: signUpData.gender === 'male' ? MALE_DEFAULT_AVATAR : FEMALE_DEFAULT_AVATAR,
+        emailVerified: false
+      };
+
+      await setDoc(doc(db, "users", user.uid), userData);
+      setMessageType(showMessage('Verification email sent! Please check your inbox and verify your email before signing in.', setError, 'success'));
+      setShowSignUp(false);
+    } catch (error: any) {
+      console.error('Error during signup:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setMessageType(showMessage('Email Address Already Exists!', setError, 'error'));
+      } else {
+        setMessageType(showMessage(`Unable to create user: ${error.message}`, setError, 'error'));
+      }
+    }
   };
 
   return (
@@ -245,7 +253,7 @@ const Login: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
-                      Email adress
+                      Email address
                     </label>
                     <input
                       type="email"
