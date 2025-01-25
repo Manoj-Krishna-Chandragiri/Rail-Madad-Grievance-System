@@ -42,6 +42,19 @@ const complaints: Complaint[] = [
   }
 ];
 
+const getStatusBadgeClass = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'in progress':
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200';
+    case 'closed':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200';
+    case 'open':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200';
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200';
+  }
+};
+
 const Dashboard = () => {
   const { theme } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,7 +174,7 @@ const Dashboard = () => {
                   <td className={`p-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>{complaint.id}</td>
                   <td className={`p-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-900'}`}>{complaint.type}</td>
                   <td className="p-4">
-                    <span className={`status-badge ${complaint.status.toLowerCase()}`}>
+                    <span className={`status-badge ${getStatusBadgeClass(complaint.status)}`}>
                       {complaint.status}
                     </span>
                   </td>

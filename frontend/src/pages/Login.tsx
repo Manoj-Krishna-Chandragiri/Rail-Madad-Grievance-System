@@ -6,11 +6,18 @@ import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
 import { getFirestore, setDoc, doc } from "firebase/firestore";
 
+const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
+const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
+
 interface SignUpData {
   name: string;
   email: string;
   password: string;
   confirmPassword: string;
+  phoneNumber: string;
+  gender: 'male' | 'female' | '';
+  address: string;
+  profileImage: string;
 }
 
 interface PasswordInputProps {
@@ -75,11 +82,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth();
 const db = getFirestore();
 
-const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>) => {
+const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>, type: 'success' | 'error' = 'error') => {
   setError(message);
   setTimeout(() => {
     setError('');
   }, 5000);
+  return type; // Return type to be used for styling
 };
 
 const Login: React.FC = () => {
@@ -93,8 +101,13 @@ const Login: React.FC = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    phoneNumber: '',
+    gender: '',
+    address: '',
+    profileImage: ''
   });
+  const [messageType, setMessageType] = useState<'success' | 'error'>('error');
   const navigate = useNavigate();
   const { theme } = useTheme();
 
@@ -103,17 +116,16 @@ const Login: React.FC = () => {
 
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
-        showMessage('Login is successful', setError);
-        const user = userCredential.user;
+        setMessageType(showMessage('Login successful!', setError, 'success'));
         localStorage.setItem('isAuthenticated', 'true');
         navigate('/');
       })
       .catch((error) => {
         const errorCode = error.code;
         if (errorCode === 'auth/invalid-credential') {
-          showMessage('Incorrect Email or Password', setError);
+          setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
         } else {
-          showMessage('Account does not exist', setError);
+          setMessageType(showMessage('Account does not exist', setError, 'error'));
         }
       });
   };
@@ -142,18 +154,17 @@ const Login: React.FC = () => {
     sendPasswordResetEmail(auth, resetEmail)
       .then(() => {
         setShowForgotPassword(false);
-        setError('Password reset link sent to your email');
+        setMessageType(showMessage('Password reset link sent to your email', setError, 'success'));
       })
       .catch((error) => {
-        console.error("Error sending password reset email", error);
-        showMessage('Failed to send password reset email', setError);
+        setMessageType(showMessage('Failed to send password reset email', setError, 'error'));
       });
   };
 
   const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault();
     if (signUpData.password !== signUpData.confirmPassword) {
-      setError('Passwords do not match');
+      setMessageType(showMessage('Passwords do not match', setError, 'error'));
       return;
     }
 
@@ -162,26 +173,29 @@ const Login: React.FC = () => {
         const user = userCredential.user;
         const userData = {
           email: signUpData.email,
-          name: signUpData.name
+          name: signUpData.name,
+          phoneNumber: signUpData.phoneNumber,
+          gender: signUpData.gender,
+          address: signUpData.address,
+          profileImage: signUpData.gender === 'male' ? MALE_DEFAULT_AVATAR : FEMALE_DEFAULT_AVATAR
         };
-        showMessage('Account Created Successfully', setError);
+        setMessageType(showMessage('Account Created Successfully!', setError, 'success'));
         const docRef = doc(db, "users", user.uid);
         setDoc(docRef, userData)
           .then(() => {
             setShowSignUp(false);
-            setError('Account created successfully! Please sign in.');
+            setMessageType(showMessage('Account created successfully! Please sign in.', setError, 'success'));
           })
           .catch((error) => {
-            console.error("Error writing document", error);
-            showMessage('Unable to create user', setError);
+            setMessageType(showMessage('Unable to create user', setError, 'error'));
           });
       })
       .catch((error) => {
         const errorCode = error.code;
         if (errorCode === 'auth/email-already-in-use') {
-          showMessage('Email Address Already Exists !!!', setError);
+          setMessageType(showMessage('Email Address Already Exists!', setError, 'error'));
         } else {
-          showMessage('Unable to create user', setError);
+          setMessageType(showMessage('Unable to create user', setError, 'error'));
         }
       });
   };
@@ -219,7 +233,15 @@ const Login: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-2">Sign in to your account</h2>
                 <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>Access Rail Madad Dashboard</p>
 
-                {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">{error}</div>}
+                {error && (
+                  <div className={`p-3 rounded-lg mb-4 ${
+                    messageType === 'success' 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {error}
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
@@ -286,7 +308,15 @@ const Login: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-2">Create an account</h2>
                 <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>Join Rail Madad Dashboard</p>
 
-                {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">{error}</div>}
+                {error && (
+                  <div className={`p-3 rounded-lg mb-4 ${
+                    messageType === 'success' 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {error}
+                  </div>
+                )}
 
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div>
@@ -313,6 +343,46 @@ const Login: React.FC = () => {
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
                         ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
                       required
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={signUpData.phoneNumber}
+                      onChange={(e) => setSignUpData({ ...signUpData, phoneNumber: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                        ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+                      Gender *
+                    </label>
+                    <select
+                      value={signUpData.gender}
+                      onChange={(e) => setSignUpData({ ...signUpData, gender: e.target.value as 'male' | 'female' })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                        ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      required
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+                      Address
+                    </label>
+                    <textarea
+                      value={signUpData.address}
+                      onChange={(e) => setSignUpData({ ...signUpData, address: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                        ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      rows={3}
                     />
                   </div>
                   <PasswordInput

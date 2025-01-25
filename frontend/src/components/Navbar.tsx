@@ -69,10 +69,14 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
             {showProfile && (
               <div className={`absolute right-0 mt-2 w-48 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg border border-gray-700 p-4 z-50`}>
                 <div className="space-y-2">
-                  <div className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} rounded cursor-pointer`}>
+                  <div className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} rounded cursor-pointer`}
+                    onClick={() => navigate('/profile')}
+                  >
                     <p className="text-sm font-medium">My Profile</p>
                   </div>
-                  <div className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} rounded cursor-pointer`}>
+                  <div className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} rounded cursor-pointer`}
+                    onClick={() => navigate('/settings')}
+                  >
                     <p className="text-sm font-medium">Settings</p>
                   </div>
                   <div 

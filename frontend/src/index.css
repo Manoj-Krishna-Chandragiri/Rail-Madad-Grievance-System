@@ -92,8 +92,8 @@ body {
 }
 
 .status-badge.in-progress {
-  background-color: #fde047;
-  color: #854d0e;
+  background-color: #fef9c3;  /* Light yellow background */
+  color: #854d0e;  /* Amber/yellow text */
 }
 
 .status-badge.closed {

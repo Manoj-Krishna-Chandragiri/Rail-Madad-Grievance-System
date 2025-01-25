@@ -15,6 +15,7 @@ import Staff from './pages/Staff';
 import Settings from './pages/Settings';
 import Help from './pages/Help';
 import FeedbackForm from './pages/FeedbackForm.tsx';
+import Profile from './pages/Profile';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
@@ -24,8 +25,8 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => {
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <Router>
+      <Router>
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
@@ -37,6 +38,8 @@ const App = () => {
               }
             >
               <Route index element={<Home />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<Settings />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="ai-assistance" element={<AIAssistance />} />
               <Route path="file-complaint" element={<FileComplaint />} />
@@ -46,13 +49,12 @@ const App = () => {
               <Route path="quick-resolution" element={<QuickResolution />} />
               <Route path="multi-lingual" element={<MultiLingual />} />
               <Route path="staff" element={<Staff />} />
-              <Route path="settings" element={<Settings />} />
               <Route path="help" element={<Help />} />
               <Route path="feedback-form" element={<FeedbackForm />} />
             </Route>
           </Routes>
-        </Router>
-      </div>
+        </div>
+      </Router>
     </ThemeProvider>
   );
 };
