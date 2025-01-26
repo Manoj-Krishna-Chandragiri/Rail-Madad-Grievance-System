@@ -159,22 +159,36 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-      .then(() => {
-        localStorage.setItem('isAuthenticated', 'true');
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      // Check if user already exists in Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      
+      localStorage.setItem('isAuthenticated', 'true');
+
+      if (!userDoc.exists()) {
+        // First time user - create basic profile and redirect to profile page
+        const initialUserData = {
+          email: user.email,
+          name: user.displayName,
+          profileImage: user.photoURL || MALE_DEFAULT_AVATAR,
+          createdAt: new Date().toISOString()
+        };
+        
+        await setDoc(doc(db, "users", user.uid), initialUserData);
+        navigate('/profile?newUser=true'); // Redirect to profile for setup
+      } else {
+        // Existing user - redirect to home
         navigate('/');
-      })
-      .catch((error) => {
-        const errorMessage = error.message;
-        if (error.code === 'auth/operation-not-allowed') {
-          showMessage('Google Sign-In is not enabled. Please enable it in Firebase Authentication settings.', setError);
-        } else {
-          console.error("Error during Google Sign-In", error);
-          showMessage('Google Sign-In failed: ' + errorMessage, setError);
-        }
-      });
+      }
+    } catch (error) {
+      console.error("Error during Google Sign-In", error);
+      showMessage('Google Sign-In failed', setError);
+    }
   };
 
   const handleForgotPassword = (e: React.FormEvent) => {

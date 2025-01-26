@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
-import { getAuth, onAuthStateChanged, updateProfile, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { getFirestore, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged, updateProfile, deleteUser, reauthenticateWithCredential, EmailAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getFirestore, doc, getDoc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { uploadToCloudinary } from '../utils/cloudinary';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
@@ -22,6 +22,7 @@ interface UserData {
 const Profile = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -88,6 +89,32 @@ const Profile = () => {
     return () => unsubscribe();
   }, [db]);
 
+  useEffect(() => {
+    const checkNewUser = async () => {
+      const isNewUser = new URLSearchParams(location.search).get('newUser');
+      const user = auth.currentUser;
+      
+      if (isNewUser === 'true' && user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userData = userDoc.data();
+        
+        if (!userData?.gender) {
+          setIsEditing(true);
+          setEditedData({
+            name: userData?.name || user.displayName || '',
+            email: user.email || '',
+            profileImage: userData?.profileImage || user.photoURL || '',
+            gender: undefined,
+            phoneNumber: userData?.phoneNumber || '',
+            address: userData?.address || ''
+          });
+        }
+      }
+    };
+
+    checkNewUser();
+  }, [location]);
+
   const handleEdit = () => {
     setIsEditing(true);
     setEditedData(userData);
@@ -150,51 +177,90 @@ const Profile = () => {
     }
   };
 
+  const reAuthenticateGoogleUser = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      return true;
+    } catch (error) {
+      console.error('Re-authentication failed:', error);
+      return false;
+    }
+  };
+
   const handleSave = async () => {
     if (!editedData || !auth.currentUser) return;
     setUpdating(true);
     let imageUrl = editedData.profileImage;
 
     try {
-      // Only upload new image if it's changed and is a data URL or blob
+      const isGoogleUser = auth.currentUser.providerData[0]?.providerId === 'google.com';
+      
+      // Check if user document exists
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+
+      // Create updates object with only defined values
+      const updates: Partial<UserData> = {};
+      
+      if (editedData.name) updates.name = editedData.name;
+      if (editedData.phoneNumber !== undefined) updates.phoneNumber = editedData.phoneNumber;
+      if (editedData.address !== undefined) updates.address = editedData.address;
+      if (editedData.gender !== undefined) updates.gender = editedData.gender;
+
+      // Handle image upload if changed
       if (editedData.profileImage?.startsWith('data:') || editedData.profileImage?.startsWith('blob:')) {
         try {
           const file = await fetch(editedData.profileImage).then(r => r.blob());
           const uploadedUrl = await handleImageUpload(file as File);
           if (uploadedUrl) {
             imageUrl = uploadedUrl;
+            updates.profileImage = imageUrl;
           }
         } catch (uploadError) {
           console.error('Image upload failed:', uploadError);
-          alert('Failed to upload image. Please try again.');
-          setUpdating(false);
-          return;
+          throw new Error('Image upload failed');
         }
       }
 
-      // Update Firestore and auth profile
-      const updates: Partial<UserData> = {
-        name: editedData.name,
-        phoneNumber: editedData.phoneNumber,
-        address: editedData.address,
-        gender: editedData.gender,
-        profileImage: imageUrl
-      };
+      // If document doesn't exist, create it with initial data
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          email: auth.currentUser.email,
+          ...updates,
+          createdAt: new Date().toISOString()
+        });
+      } else {
+        // Update existing document
+        await updateDoc(userRef, updates);
+      }
 
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      await updateDoc(userRef, updates);
+      // Update auth profile
+      if (isGoogleUser) {
+        try {
+          await reAuthenticateGoogleUser();
+        } catch (error) {
+          console.error('Re-authentication failed but continuing with update');
+        }
+      }
 
       await updateProfile(auth.currentUser, {
-        displayName: editedData.name,
-        photoURL: imageUrl
+        displayName: editedData.name || undefined,
+        photoURL: imageUrl || undefined
       });
 
+      // Refresh user data
       await fetchUserData(auth.currentUser);
       setIsEditing(false);
       setEditedData(null);
+      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      if (error instanceof Error) {
+        alert(`Failed to update profile: ${error.message}`);
+      } else {
+        alert('Failed to update profile. Please try again.');
+      }
     } finally {
       setUpdating(false);
     }
@@ -325,6 +391,23 @@ const Profile = () => {
                       ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
                     rows={3}
                   />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-1`}>
+                    Gender *
+                  </label>
+                  <select
+                    value={editedData?.gender || ''}
+                    onChange={(e) => setEditedData(prev => ({ ...prev!, gender: e.target.value as 'male' | 'female' }))}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                      ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    required
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
                 </div>
 
                 <div className="flex gap-4 mt-6">
