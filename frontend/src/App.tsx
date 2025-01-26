@@ -16,6 +16,7 @@ import Settings from './pages/Settings';
 import Help from './pages/Help';
 import FeedbackForm from './pages/FeedbackForm.tsx';
 import Profile from './pages/Profile';
+import './styles/translate.css';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';

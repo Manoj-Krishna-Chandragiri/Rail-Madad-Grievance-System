@@ -26,9 +26,9 @@ const Sidebar = ({ isOpen }: SidebarProps) => {
     { path: '/quick-resolution', icon: Zap, label: 'Quick Resolution', showFor: 'admin' },
     { path: '/multi-lingual', icon: Globe, label: 'Multi-lingual', showFor: 'both' },
     { path: '/staff', icon: Users, label: 'Staff Management', showFor: 'admin' },
-    { path: '/settings', icon: Settings, label: 'Settings', showFor: 'both' },
+    { path: '/feedback-form', icon: MessageSquare, label: 'Feedback Form', showFor: 'passenger' },
     { path: '/help', icon: HelpCircle, label: 'Help', showFor: 'passenger' },
-    { path: '/feedback-form', icon: MessageSquare, label: 'Feedback Form', showFor: 'passenger' }
+    { path: '/settings', icon: Settings, label: 'Settings', showFor: 'both' }
   ];
 
   const menuItems = allMenuItems.filter(item => 
@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen }: SidebarProps) => {
   );
 
   return (
-    <aside className={`fixed left-0 top-0 h-full w-64 ${theme === 'dark' ? 'bg-gray-800' : 'bg-indigo-700'} text-white transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <aside className={`fixed left-0 h-full w-64 pt-16 ${theme === 'dark' ? 'bg-gray-800' : 'bg-indigo-700'} text-white transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="h-full flex flex-col">
         <div className="flex-grow overflow-y-auto">
           <div className="space-y-6 p-6">
