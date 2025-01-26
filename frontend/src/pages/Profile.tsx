@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { getAuth, onAuthStateChanged, updateProfile, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { uploadToCloudinary } from '../utils/cloudinary';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
 const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
@@ -34,31 +34,51 @@ const Profile = () => {
   const [error, setError] = useState('');
   const auth = getAuth();
   const db = getFirestore();
-  const storage = getStorage();
+
+  const handleImageUpload = async (file: File) => {
+    if (!auth.currentUser) return null;
+
+    try {
+      const compressedFile = await compressImage(file);
+      const cloudinaryUrl = await uploadToCloudinary(compressedFile as File);
+      return cloudinaryUrl;
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+  };
+
+  const fetchUserData = async (user: any) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      
+      // Get the latest profile image URL from Firestore
+      const profileImage = userData?.profileImage || 
+        (userData?.gender === 'female' ? FEMALE_DEFAULT_AVATAR : MALE_DEFAULT_AVATAR);
+
+      setUserData({
+        name: userData?.name || user.displayName || 'User',
+        email: user.email || '',
+        phoneNumber: userData?.phoneNumber || '',
+        gender: userData?.gender,
+        address: userData?.address || '',
+        profileImage: profileImage // Use the stored image URL
+      });
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setUserData({
+        name: user.displayName || 'User',
+        email: user.email || '',
+        profileImage: MALE_DEFAULT_AVATAR
+      });
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          const userData = userDoc.data();
-          setUserData({
-            name: userData?.name || user.displayName || 'User',
-            email: user.email || '',
-            phoneNumber: userData?.phoneNumber || '',
-            gender: userData?.gender,
-            address: userData?.address || '',
-            profileImage: user.photoURL || 
-              (userData?.gender === 'female' ? FEMALE_DEFAULT_AVATAR : MALE_DEFAULT_AVATAR)
-          });
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          setUserData({
-            name: user.displayName || 'User',
-            email: user.email || '',
-            profileImage: MALE_DEFAULT_AVATAR
-          });
-        }
+        await fetchUserData(user);
       } else {
         setUserData(null);
       }
@@ -76,40 +96,6 @@ const Profile = () => {
   const handleCancel = () => {
     setIsEditing(false);
     setEditedData(null);
-  };
-
-  const handleImageUpload = async (file: File) => {
-    if (!auth.currentUser) return;
-
-    try {
-      // Compress image before uploading
-      const compressedFile = await compressImage(file);
-      
-      // Create a unique filename
-      const fileName = `profile_${auth.currentUser.uid}_${Date.now()}.jpg`;
-      const storageRef = ref(storage, `profile_images/${fileName}`);
-      
-      // Show loading state
-      setUpdating(true);
-
-      // Create temporary URL for immediate preview
-      const tempURL = URL.createObjectURL(file);
-      setEditedData(prev => ({ ...prev!, profileImage: tempURL }));
-
-      // Upload the compressed image
-      try {
-        const snapshot = await uploadBytes(storageRef, compressedFile);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        return downloadURL;
-      } catch (error) {
-        console.error('Upload failed:', error);
-        // Fallback to default avatar if upload fails
-        return userData?.gender === 'female' ? FEMALE_DEFAULT_AVATAR : MALE_DEFAULT_AVATAR;
-      }
-    } catch (error) {
-      console.error('Image processing failed:', error);
-      return null;
-    }
   };
 
   const compressImage = async (file: File): Promise<Blob> => {
@@ -166,41 +152,49 @@ const Profile = () => {
 
   const handleSave = async () => {
     if (!editedData || !auth.currentUser) return;
-
     setUpdating(true);
+    let imageUrl = editedData.profileImage;
+
     try {
+      // Only upload new image if it's changed and is a data URL or blob
+      if (editedData.profileImage?.startsWith('data:') || editedData.profileImage?.startsWith('blob:')) {
+        try {
+          const file = await fetch(editedData.profileImage).then(r => r.blob());
+          const uploadedUrl = await handleImageUpload(file as File);
+          if (uploadedUrl) {
+            imageUrl = uploadedUrl;
+          }
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError);
+          alert('Failed to upload image. Please try again.');
+          setUpdating(false);
+          return;
+        }
+      }
+
+      // Update Firestore and auth profile
       const updates: Partial<UserData> = {
         name: editedData.name,
         phoneNumber: editedData.phoneNumber,
         address: editedData.address,
-        gender: editedData.gender
+        gender: editedData.gender,
+        profileImage: imageUrl
       };
 
-      // Only upload new image if it's changed
-      if (editedData.profileImage?.startsWith('data:') || editedData.profileImage?.startsWith('blob:')) {
-        const file = await fetch(editedData.profileImage).then(r => r.blob());
-        const imageUrl = await handleImageUpload(file as File);
-        if (imageUrl) {
-          updates.profileImage = imageUrl;
-        }
-      }
-
-      // Update Firestore first
       const userRef = doc(db, 'users', auth.currentUser.uid);
       await updateDoc(userRef, updates);
 
-      // Then update auth profile
       await updateProfile(auth.currentUser, {
         displayName: editedData.name,
-        photoURL: updates.profileImage || editedData.profileImage
+        photoURL: imageUrl
       });
 
-      // Update local state
-      setUserData({ ...editedData, profileImage: updates.profileImage || editedData.profileImage });
+      await fetchUserData(auth.currentUser);
       setIsEditing(false);
       setEditedData(null);
     } catch (error) {
       console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
     } finally {
       setUpdating(false);
     }
