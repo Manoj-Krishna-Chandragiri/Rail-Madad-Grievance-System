@@ -15,7 +15,7 @@ interface Complaint {
 const complaints: Complaint[] = [
   {
     id: 1,
-    type: 'Housekeeping',
+    type: 'Coach - Cleanliness',
     status: 'Open',
     severity: 'Medium',
     date: '2024-09-24',
@@ -24,7 +24,7 @@ const complaints: Complaint[] = [
   },
   {
     id: 2,
-    type: 'Cleanliness',
+    type: 'Coach - Maintenance/Facilities',
     status: 'Closed',
     severity: 'Low',
     date: '2024-09-24',
@@ -33,7 +33,7 @@ const complaints: Complaint[] = [
   },
   {
     id: 3,
-    type: 'Staff Behavior',
+    type: 'Staff Behaviour',
     status: 'In Progress',
     severity: 'High',
     date: '2024-09-23',

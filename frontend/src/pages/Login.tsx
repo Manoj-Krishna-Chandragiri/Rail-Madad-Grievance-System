@@ -4,7 +4,7 @@ import GoogleIcon from '../components/icons/GoogleIcon';
 import { useTheme } from '../context/ThemeContext';
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
-import { getFirestore, setDoc, doc } from "firebase/firestore";
+import { getFirestore, setDoc, doc, getDoc } from "firebase/firestore";
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
 const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
@@ -53,14 +53,21 @@ const PasswordInput: React.FC<PasswordInputProps> = ({ value, onChange, label, r
           <svg 
             viewBox="0 0 24 24" 
             width="20" 
-            height="20" 
-            className={`transition-transform ${showPassword ? 'opacity-70' : ''}`}
+            height="20"
           >
-            <path 
-              fill="currentColor"
-              fillRule="evenodd" 
-              d="M7.119 14.563L5.982 16.53l-1.732-1 1.301-2.253A8.97 8.97 0 0 1 3 7h2a7 7 0 0 0 14 0h2a8.973 8.973 0 0 1-2.72 6.448l1.202 2.083-1.732 1-1.065-1.845A8.944 8.944 0 0 1 13 15.946V18h-2v-2.055a8.946 8.946 0 0 1-3.881-1.382z"
-            />
+            {showPassword ? (
+              <path 
+                fill="currentColor"
+                fillRule="evenodd" 
+                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+              />
+            ) : (
+              <path 
+                fill="currentColor"
+                fillRule="evenodd" 
+                d="M7.119 14.563L5.982 16.53l-1.732-1 1.301-2.253A8.97 8.97 0 0 1 3 7h2a7 7 0 0 0 14 0h2a8.973 8.973 0 0 1-2.72 6.448l1.202 2.083-1.732 1-1.065-1.845A8.944 8.944 0 0 1 13 15.946V18h-2v-2.055a8.946 8.946 0 0 1-3.881-1.382z"
+              />
+            )}
           </svg>
         </button>
       </div>
@@ -118,19 +125,36 @@ const Login: React.FC = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Special handling for admin account
+      if (email === 'chandragirimanojkrishna@gmail.com' && password === '123456789') {
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userRole', 'admin');
+        navigate('/dashboard');
+        return;
+      }
+
+      // Regular user authentication
       if (!user.emailVerified) {
         setMessageType(showMessage('Please verify your email before signing in. Check your inbox.', setError, 'error'));
         return;
       }
 
-      setMessageType(showMessage('Login successful!', setError, 'success'));
+      // Set up user session
       localStorage.setItem('isAuthenticated', 'true');
-      navigate('/');
+      localStorage.setItem('userRole', 'passenger');
+      
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        setMessageType(showMessage('Login successful!', setError, 'success'));
+        navigate('/');
+      } else {
+        setMessageType(showMessage('User data not found', setError, 'error'));
+      }
     } catch (error: any) {
       if (error.code === 'auth/invalid-credential') {
         setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
       } else {
-        setMessageType(showMessage('Account does not exist', setError, 'error'));
+        setMessageType(showMessage('Login failed. Please try again.', setError, 'error'));
       }
     }
   };

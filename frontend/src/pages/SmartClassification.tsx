@@ -20,7 +20,7 @@ const SmartClassification = () => {
     {
       id: '1',
       text: 'AC not working in coach B4',
-      category: 'Technical',
+      category: 'Electrical Equipment',
       confidence: 0.95,
       timestamp: '2024-03-10 14:30',
       status: 'Classified'
@@ -28,7 +28,7 @@ const SmartClassification = () => {
     {
       id: '2',
       text: 'Food quality is poor in Rajdhani Express',
-      category: 'Catering',
+      category: 'Catering / Vending Services',
       confidence: 0.88,
       timestamp: '2024-03-10 15:45',
       status: 'Pending Review'
@@ -36,14 +36,31 @@ const SmartClassification = () => {
     {
       id: '3',
       text: 'Cleanliness issues in washroom',
-      category: 'Hygiene',
+      category: 'Coach - Cleanliness',
       confidence: 0.92,
       timestamp: '2024-03-10 16:20',
       status: 'Classified'
     }
   ];
 
-  const categories = ['Technical', 'Catering', 'Hygiene', 'Security', 'Staff', 'Other'];
+  const categories = [
+    'Coach - Maintenance/Facilities',
+    'Electrical Equipment',
+    'Medical Assistance',
+    'Catering / Vending Services',
+    'Passengers Behaviour',
+    'Water Availability',
+    'Punctuality',
+    'Security',
+    'Unreserved / Reserved Ticketing',
+    'Coach - Cleanliness',
+    'Staff Behaviour',
+    'Refund of Tickets',
+    'Passenger Amenities',
+    'Bed Roll',
+    'Corruption / Bribery',
+    'Miscellaneous'
+  ];
 
   const filteredComplaints = complaints.filter(complaint => {
     const matchesSearch = complaint.text.toLowerCase().includes(searchTerm.toLowerCase());

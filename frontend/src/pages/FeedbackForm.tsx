@@ -81,10 +81,22 @@ const FeedbackForm = () => {
               required
             >
               <option value="">Select Category</option>
-              <option value="complaint">Complaint Handling</option>
-              <option value="support">Support Quality</option>
-              <option value="ai">AI Assistance</option>
-              <option value="general">General Feedback</option>
+              <option value="coach-maintenance">Coach - Maintenance/Facilities</option>
+              <option value="electrical">Electrical Equipment</option>
+              <option value="medical">Medical Assistance</option>
+              <option value="catering">Catering / Vending Services</option>
+              <option value="passenger-behaviour">Passengers Behaviour</option>
+              <option value="water">Water Availability</option>
+              <option value="punctuality">Punctuality</option>
+              <option value="security">Security</option>
+              <option value="ticketing">Unreserved / Reserved Ticketing</option>
+              <option value="coach-cleanliness">Coach - Cleanliness</option>
+              <option value="staff-behaviour">Staff Behaviour</option>
+              <option value="refund">Refund of Tickets</option>
+              <option value="amenities">Passenger Amenities</option>
+              <option value="bedroll">Bed Roll</option>
+              <option value="corruption">Corruption / Bribery</option>
+              <option value="miscellaneous">Miscellaneous</option>
             </select>
           </div>
 

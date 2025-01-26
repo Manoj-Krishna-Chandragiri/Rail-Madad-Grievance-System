@@ -1,5 +1,5 @@
 import { Bell, User } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 
@@ -10,8 +10,28 @@ interface NavbarProps {
 const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { theme } = useTheme();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if click is outside notifications dropdown
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+      // Check if click is outside profile dropdown
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setShowProfile(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
@@ -34,7 +54,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="relative">
+          <div className="relative" ref={notificationsRef}>
             <button 
               className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-lg`}
               onClick={() => setShowNotifications(!showNotifications)}
@@ -59,7 +79,7 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
             )}
           </div>
           
-          <div className="relative">
+          <div className="relative" ref={profileRef}>
             <button 
               className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-lg`}
               onClick={() => setShowProfile(!showProfile)}

@@ -1,4 +1,4 @@
-import { FileUp, Camera, Paperclip } from 'lucide-react';
+import { FileUp, Camera } from 'lucide-react'; // Remove Paperclip import
 import { useState, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -15,13 +15,12 @@ const FileComplaint = () => {
   });
 
   const [photos, setPhotos] = useState<File[]>([]);
-  const [attachments, setAttachments] = useState<File[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Remove attachments state and fileInputRef
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Complaint submitted:', { ...formData, photos, attachments });
+    console.log('Complaint submitted:', { ...formData, photos });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -35,11 +34,7 @@ const FileComplaint = () => {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setAttachments(prev => [...prev, ...Array.from(e.target.files || [])]);
-    }
-  };
+  // Remove handleFileUpload function
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -63,11 +58,22 @@ const FileComplaint = () => {
               required
             >
               <option value="">Select Type</option>
-              <option value="technical">Technical</option>
-              <option value="cleanliness">Cleanliness</option>
-              <option value="food">Food & Catering</option>
-              <option value="staff">Staff Behavior</option>
-              <option value="other">Other</option>
+              <option value="coach-maintenance">Coach - Maintenance/Facilities</option>
+              <option value="electrical">Electrical Equipment</option>
+              <option value="medical">Medical Assistance</option>
+              <option value="catering">Catering / Vending Services</option>
+              <option value="passenger-behaviour">Passengers Behaviour</option>
+              <option value="water">Water Availability</option>
+              <option value="punctuality">Punctuality</option>
+              <option value="security">Security</option>
+              <option value="ticketing">Unreserved / Reserved Ticketing</option>
+              <option value="coach-cleanliness">Coach - Cleanliness</option>
+              <option value="staff-behaviour">Staff Behaviour</option>
+              <option value="refund">Refund of Tickets</option>
+              <option value="amenities">Passenger Amenities</option>
+              <option value="bedroll">Bed Roll</option>
+              <option value="corruption">Corruption / Bribery</option>
+              <option value="miscellaneous">Miscellaneous</option>
             </select>
           </div>
 
@@ -190,24 +196,7 @@ const FileComplaint = () => {
               </div>
             </div>
 
-            <div>
-              <h3 className={`font-medium mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-700'}`}>Uploaded Files</h3>
-              <div className="space-y-2">
-                {attachments.map((file, index) => (
-                  <div key={index} className={`flex items-center justify-between p-2 rounded-lg
-                    ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                    <span>{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
-                      className="text-red-500"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Remove the Uploaded Files section */}
           </div>
 
           <div className="flex gap-4">
@@ -219,13 +208,7 @@ const FileComplaint = () => {
               multiple
               className="hidden"
             />
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              multiple
-              className="hidden"
-            />
+            {/* Remove file input element */}
             <button
               type="button"
               onClick={() => photoInputRef.current?.click()}
@@ -235,15 +218,7 @@ const FileComplaint = () => {
               <Camera className="h-5 w-5" />
               Add Photo
             </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg
-                ${theme === 'dark' ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
-            >
-              <Paperclip className="h-5 w-5" />
-              Attach File
-            </button>
+            {/* Remove Attach File button */}
           </div>
 
           <div className="flex justify-end">

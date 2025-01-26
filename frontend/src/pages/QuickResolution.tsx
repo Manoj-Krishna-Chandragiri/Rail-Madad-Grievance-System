@@ -23,7 +23,7 @@ const QuickResolution = () => {
       id: '1',
       problem: 'PNR Status Not Updating',
       solution: '1. Clear browser cache\n2. Wait for 15 minutes\n3. Try refreshing the page\n4. Contact support if issue persists',
-      category: 'Technical',
+      category: 'Unreserved / Reserved Ticketing',
       resolution_time: '5 mins',
       success_rate: 92
     },
@@ -31,7 +31,7 @@ const QuickResolution = () => {
       id: '2',
       problem: 'Refund Not Processed',
       solution: '1. Check bank account details\n2. Verify cancellation status\n3. Wait for 5-7 business days\n4. Raise ticket if delayed',
-      category: 'Payment',
+      category: 'Refund of Tickets',
       resolution_time: '7 days',
       success_rate: 85
     },
@@ -39,13 +39,30 @@ const QuickResolution = () => {
       id: '3',
       problem: 'Seat Not Allocated',
       solution: '1. Check PNR status\n2. Verify booking confirmation\n3. Contact TTE\n4. Visit help desk',
-      category: 'Booking',
+      category: 'Passenger Amenities',
       resolution_time: '30 mins',
       success_rate: 88
     }
   ];
 
-  const categories = ['Technical', 'Payment', 'Booking', 'Service', 'Other'];
+  const categories = [
+    'Coach - Maintenance/Facilities',
+    'Electrical Equipment',
+    'Medical Assistance',
+    'Catering / Vending Services',
+    'Passengers Behaviour',
+    'Water Availability',
+    'Punctuality',
+    'Security',
+    'Unreserved / Reserved Ticketing',
+    'Coach - Cleanliness',
+    'Staff Behaviour',
+    'Refund of Tickets',
+    'Passenger Amenities',
+    'Bed Roll',
+    'Corruption / Bribery',
+    'Miscellaneous'
+  ];
 
   const filteredSolutions = solutions.filter(solution => {
     const matchesSearch = 

@@ -22,6 +22,11 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const isAdmin = localStorage.getItem('userRole') === 'admin';
+  return isAdmin ? <>{children}</> : <Navigate to="/" />;
+};
+
 const App = () => {
   return (
     <ThemeProvider>
@@ -37,18 +42,25 @@ const App = () => {
                 </PrivateRoute>
               }
             >
+              {/* Common Routes */}
               <Route index element={<Home />} />
-              <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="ai-assistance" element={<AIAssistance />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="real-time-support" element={<RealTimeSupport />} />
+              <Route path="multi-lingual" element={<MultiLingual />} />
+
+              {/* Admin Routes */}
+              <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+              <Route path="smart-classification" element={<AdminRoute><SmartClassification /></AdminRoute>} />
+              <Route path="real-time-support" element={<AdminRoute><RealTimeSupport /></AdminRoute>} />
+              <Route path="quick-resolution" element={<AdminRoute><QuickResolution /></AdminRoute>} />
+              <Route path="multi-lingual" element={<AdminRoute><MultiLingual /></AdminRoute>} />
+              <Route path="staff" element={<AdminRoute><Staff /></AdminRoute>} />
+
+              {/* Passenger Routes */}
               <Route path="file-complaint" element={<FileComplaint />} />
               <Route path="track-status" element={<TrackStatus />} />
-              <Route path="smart-classification" element={<SmartClassification />} />
-              <Route path="real-time-support" element={<RealTimeSupport />} />
-              <Route path="quick-resolution" element={<QuickResolution />} />
-              <Route path="multi-lingual" element={<MultiLingual />} />
-              <Route path="staff" element={<Staff />} />
+              <Route path="ai-assistance" element={<AIAssistance />} />
               <Route path="help" element={<Help />} />
               <Route path="feedback-form" element={<FeedbackForm />} />
             </Route>

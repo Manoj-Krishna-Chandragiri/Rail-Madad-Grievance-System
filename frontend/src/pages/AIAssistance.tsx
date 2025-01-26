@@ -1,6 +1,7 @@
-import { Bot, MessageCircle, Loader } from 'lucide-react';
-import { useState } from 'react';
+import { Bot, MessageCircle, Loader, Mic, MicOff } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import AudioTranscription from '../components/AudioTranscription';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -27,6 +28,27 @@ const AIAssistance = () => {
     }
   ]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const { isRecording, toggleRecording } = AudioTranscription({
+    onTranscriptionComplete: (text) => {
+      setMessage(text);
+      // Optional: Auto-submit after transcription
+      // if (text && inputRef.current) {
+      //   inputRef.current.form?.requestSubmit();
+      // }
+    }
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -119,10 +141,12 @@ const AIAssistance = () => {
               <span>AI is thinking...</span>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         <form onSubmit={handleSubmit} className="flex gap-4">
           <input
+            ref={inputRef}
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -133,6 +157,18 @@ const AIAssistance = () => {
                 : 'bg-white border-gray-300'
             }`}
           />
+          <button
+            type="button"
+            onClick={toggleRecording}
+            className={`p-2 rounded-lg ${
+              isRecording 
+                ? 'bg-red-600 hover:bg-red-700' 
+                : 'bg-gray-600 hover:bg-gray-700'
+            } text-white`}
+            title={isRecording ? "Stop Recording" : "Start Recording"}
+          >
+            {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </button>
           <button
             type="submit"
             className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
