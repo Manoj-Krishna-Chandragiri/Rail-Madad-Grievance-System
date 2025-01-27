@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GoogleIcon from '../components/icons/GoogleIcon';
 import { useTheme } from '../context/ThemeContext';
@@ -91,6 +91,8 @@ const db = getFirestore();
 
 const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>, type: 'success' | 'error' = 'error') => {
   setError(message);
+  // Scroll to top when message is shown
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   setTimeout(() => {
     setError('');
   }, 5000);
@@ -117,6 +119,16 @@ const Login: React.FC = () => {
   const [messageType, setMessageType] = useState<'success' | 'error'>('error');
   const navigate = useNavigate();
   const { theme } = useTheme();
+
+  // Add useRef for the error message container
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // Add useEffect to scroll to error message when it changes
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,11 +291,14 @@ const Login: React.FC = () => {
                 <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>Access Rail Madad Dashboard</p>
 
                 {error && (
-                  <div className={`p-3 rounded-lg mb-4 ${
-                    messageType === 'success' 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
+                  <div 
+                    ref={errorRef}
+                    className={`p-3 rounded-lg mb-4 ${
+                      messageType === 'success' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
+                    }`}
+                  >
                     {error}
                   </div>
                 )}
