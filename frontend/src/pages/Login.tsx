@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
 import { getFirestore, setDoc, doc, getDoc } from "firebase/firestore";
+import { handleMFAChallenge } from '../utils/mfa';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
 const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
@@ -89,7 +90,7 @@ initializeApp(firebaseConfig);
 const auth = getAuth();
 const db = getFirestore();
 
-const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>, type: 'success' | 'error' = 'error') => {
+const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>, type: 'success' | 'error' | 'info' = 'error') => {
   setError(message);
   // Scroll to top when message is shown
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -116,7 +117,7 @@ const Login: React.FC = () => {
     address: '',
     profileImage: ''
   });
-  const [messageType, setMessageType] = useState<'success' | 'error'>('error');
+  const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('error');
   const navigate = useNavigate();
   const { theme } = useTheme();
 
@@ -129,6 +130,10 @@ const Login: React.FC = () => {
       errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [error]);
+
+  const [showMFAPrompt, setShowMFAPrompt] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [mfaResolver, setMFAResolver] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,11 +168,30 @@ const Login: React.FC = () => {
         setMessageType(showMessage('User data not found', setError, 'error'));
       }
     } catch (error: any) {
-      if (error.code === 'auth/invalid-credential') {
-        setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
+      if (error.code === 'auth/multi-factor-auth-required') {
+        setMFAResolver(error);
+        setShowMFAPrompt(true);
+        setMessageType('info');
+        setError('Please enter the verification code sent to your phone.');
       } else {
-        setMessageType(showMessage('Login failed. Please try again.', setError, 'error'));
+        if (error.code === 'auth/invalid-credential') {
+          setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
+        } else {
+          setMessageType(showMessage('Login failed. Please try again.', setError, 'error'));
+        }
       }
+    }
+  };
+
+  const handleMFAVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await handleMFAChallenge(mfaResolver, verificationCode);
+      // Successfully completed MFA
+      setMessageType(showMessage('Login successful!', setError, 'success'));
+      navigate('/');
+    } catch (error) {
+      setMessageType(showMessage('Invalid verification code', setError, 'error'));
     }
   };
 
@@ -257,6 +281,36 @@ const Login: React.FC = () => {
     }
   };
 
+  if (showMFAPrompt) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white'} p-8 rounded-lg shadow-xl max-w-md mx-auto`}>
+          <h2 className="text-2xl font-bold mb-4">Two-Factor Authentication</h2>
+          <p className="mb-4">Please enter the verification code sent to your phone.</p>
+          
+          <form onSubmit={handleMFAVerification} className="space-y-4">
+            <input
+              type="text"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter verification code"
+              className={`w-full px-3 py-2 border rounded-lg ${
+                theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+              }`}
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+            >
+              Verify
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[url('https://railmadad-dashboard.web.app/assets/body-bg-BM5rPYaf.jpg')] bg-cover bg-center bg-no-repeat">
       <div className="container mx-auto px-4 flex">
@@ -295,11 +349,13 @@ const Login: React.FC = () => {
                     ref={errorRef}
                     className={`p-3 rounded-lg mb-4 ${
                       messageType === 'success' 
-                        ? 'bg-green-100 text-green-700' 
+                      ? 'bg-green-100 text-green-700'
+                      : messageType === 'info'
+                        ? 'bg-blue-100 text-blue-700'
                         : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {error}
+                  }`}
+                >
+                  {error}
                   </div>
                 )}
 
