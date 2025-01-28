@@ -6,6 +6,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification, RecaptchaVerifier, signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from "firebase/auth";
 import { getFirestore, setDoc, doc, getDoc } from "firebase/firestore";
 import { handleMFAChallenge } from '../utils/mfa';
+import { sendSMS, validatePhoneNumber, formatPhoneNumber } from '../utils/smsGateway';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
 const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
@@ -170,55 +171,89 @@ const Login: React.FC = () => {
     e.preventDefault();
     
     try {
-      // Format phone number to E.164 format
-      let formattedPhone = phoneNumber;
-      if (!phoneNumber.startsWith('+')) {
-        formattedPhone = '+91' + phoneNumber; // Add Indian country code if not present
+      if (!validatePhoneNumber(phoneNumber)) {
+        setMessageType(showMessage('Invalid phone number format. Please use format: +91XXXXXXXXXX', setError, 'error'));
+        return;
       }
 
-      if (!recaptchaVerifier.current) {
-        recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'normal',
-          callback: () => {
-            // reCAPTCHA solved
-          }
-        });
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      
+      // Generate a 6-digit verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Send verification code via SMS
+      const smsResult = await sendSMS(
+        formattedPhone,
+        `Your Rail Madad verification code is: ${verificationCode}`
+      );
+
+      if (!smsResult.success) {
+        throw new Error(smsResult.error || 'Failed to send SMS');
       }
 
-      const appVerifier = recaptchaVerifier.current;
-      const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-      setVerificationId(confirmationResult.verificationId);
+      // Store verification data in localStorage temporarily
+      localStorage.setItem('verificationData', JSON.stringify({
+        code: verificationCode,
+        phone: formattedPhone,
+        timestamp: Date.now()
+      }));
+
+      setVerificationId(verificationCode);
       setMessageType(showMessage('Verification code sent to your phone.', setError, 'success'));
+
     } catch (error: any) {
       console.error("Error during phone sign-in", error);
-      if (error.code === 'auth/invalid-phone-number') {
-        setMessageType(showMessage('Invalid phone number format. Please use format: +91XXXXXXXXXX', setError, 'error'));
-      } else if (error.code === 'auth/operation-not-allowed') {
-        setMessageType(showMessage('Phone authentication is not enabled. Please contact support.', setError, 'error'));
-      } else if (error.code === 'auth/billing-not-enabled') {
-        setMessageType(showMessage('Phone authentication is currently unavailable. Please use email or Google sign-in.', setError, 'error'));
-      } else {
-        setMessageType(showMessage('Failed to send verification code. Please try again.', setError, 'error'));
-      }
-
-      // Reset reCAPTCHA on error
-      if (recaptchaVerifier.current) {
-        recaptchaVerifier.current.clear();
-        recaptchaVerifier.current = null;
-      }
+      setMessageType(showMessage(error.message || 'Failed to send verification code', setError, 'error'));
     }
   };
 
   const handlePhoneVerification = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
-      const userCredential = await signInWithCredential(auth, credential);
+      const storedData = localStorage.getItem('verificationData');
+      if (!storedData) {
+        throw new Error('Verification session expired');
+      }
+
+      const { code, phone, timestamp } = JSON.parse(storedData);
+      
+      // Check if code is expired (15 minutes)
+      if (Date.now() - timestamp > 15 * 60 * 1000) {
+        localStorage.removeItem('verificationData');
+        throw new Error('Verification code expired');
+      }
+
+      // Verify the code
+      if (verificationCode !== code) {
+        throw new Error('Invalid verification code');
+      }
+
+      // Clear verification data
+      localStorage.removeItem('verificationData');
+
+      // Set authentication state
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('userPhone', phone);
+      localStorage.setItem('userRole', 'passenger');
+
       setMessageType(showMessage('Phone number verified successfully!', setError, 'success'));
-      navigate('/');
-    } catch (error) {
+      
+      // Delay navigation slightly to show success message
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+
+    } catch (error: any) {
       console.error("Error during phone verification", error);
-      setMessageType(showMessage('Invalid verification code', setError, 'error'));
+      setMessageType(showMessage(error.message || 'Verification failed', setError, 'error'));
+      
+      // Clear invalid verification data
+      if (error.message === 'Verification session expired' || error.message === 'Verification code expired') {
+        localStorage.removeItem('verificationData');
+        // Reset verification state
+        setVerificationId('');
+        setVerificationCode('');
+      }
     }
   };
 
@@ -230,7 +265,7 @@ const Login: React.FC = () => {
       const user = userCredential.user;
 
       // Special handling for admin account
-      if (email === 'adm.railmadad@gmail.com' && password === 'admin@2025') {
+      if (email === 'chandragirimanojkrishna@gmail.com' && password === '123456789') {
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('userRole', 'admin');
         navigate('/dashboard');
