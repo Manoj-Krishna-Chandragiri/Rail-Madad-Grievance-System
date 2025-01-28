@@ -230,7 +230,7 @@ const Login: React.FC = () => {
       const user = userCredential.user;
 
       // Special handling for admin account
-      if (email === 'chandragirimanojkrishna@gmail.com' && password === '123456789') {
+      if (email === 'adm.railmadad@gmail.com' && password === 'admin@2025') {
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('userRole', 'admin');
         navigate('/dashboard');
