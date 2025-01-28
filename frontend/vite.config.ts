@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     port: 5151
   },
+  build: {
+    outDir: 'build', // Ensure this matches the directory specified in amplify.yml
+  },
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

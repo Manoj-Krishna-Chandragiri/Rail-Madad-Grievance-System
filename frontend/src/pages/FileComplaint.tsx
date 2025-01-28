@@ -1,4 +1,4 @@
-import { FileUp, Camera } from 'lucide-react'; // Remove Paperclip import
+import { FileUp, Camera, Mic, MicOff } from 'lucide-react'; // Remove Paperclip import
 import { useState, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -16,6 +16,7 @@ const FileComplaint = () => {
 
   const [photos, setPhotos] = useState<File[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
   // Remove attachments state and fileInputRef
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -31,6 +32,33 @@ const FileComplaint = () => {
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setPhotos(prev => [...prev, ...Array.from(e.target.files || [])]);
+    }
+  };
+
+  const handleVoiceInput = () => {
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setFormData(prev => ({
+          ...prev,
+          description: prev.description + ' ' + transcript
+        }));
+      };
+
+      recognition.start();
     }
   };
 
@@ -162,15 +190,29 @@ const FileComplaint = () => {
             <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
               Complaint Description
             </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Describe your complaint in detail"
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[100px]
-                ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300'}`}
-              required
-            />
+            <div className="relative">
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Describe your complaint in detail"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 min-h-[100px]
+                  ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300'}`}
+                required
+              />
+              <button
+                type="button"
+                onClick={handleVoiceInput}
+                className={`absolute right-2 bottom-2 p-2 rounded-full ${
+                  isRecording 
+                    ? 'bg-red-600 hover:bg-red-700' 
+                    : theme === 'dark' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300'
+                }`}
+                title={isRecording ? "Stop Recording" : "Start Voice Input"}
+              >
+                {isRecording ? <MicOff className="h-5 w-5 text-white" /> : <Mic className="h-5 w-5 text-gray-700" />}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">

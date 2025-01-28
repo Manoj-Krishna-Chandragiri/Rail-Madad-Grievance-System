@@ -4,11 +4,10 @@ import { useTheme } from '../context/ThemeContext';
 import { getAuth, onAuthStateChanged, updateProfile, deleteUser, reauthenticateWithCredential, EmailAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, getDoc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { uploadToCloudinary } from '../utils/cloudinary';
+import { setupMFA, enrollMFA } from '../utils/mfa';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
 const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
-
-const BACKUP_AVATAR = 'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png'; // Backup URL
 
 interface UserData {
   name: string;
@@ -29,10 +28,13 @@ const Profile = () => {
   const [editedData, setEditedData] = useState<UserData | null>(null);
   const [updating, setUpdating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [imageError, setImageError] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [showMFASetup, setShowMFASetup] = useState(false);
+  const [verificationId, setVerificationId] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error' | null>(null);
   const auth = getAuth();
   const db = getFirestore();
 
@@ -266,13 +268,6 @@ const Profile = () => {
     }
   };
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const img = e.target as HTMLImageElement;
-    if (!imageError) {
-      setImageError(true);
-      img.src = BACKUP_AVATAR;
-    }
-  };
 
   const handleDeleteAccount = async () => {
     if (!auth.currentUser) return;
@@ -297,6 +292,33 @@ const Profile = () => {
     } catch (error: any) {
       console.error('Error deleting account:', error);
       setError(error.message || 'Failed to delete account');
+    }
+  };
+
+  const showMessage = (message: string, setError: (message: string) => void, type: 'success' | 'error') => {
+    setError(message);
+    return type;
+  };
+
+  const handleEnableMFA = async () => {
+    try {
+      const vId = await setupMFA('recaptcha-container');
+      setVerificationId(vId);
+      setShowMFASetup(true);
+      setMessageType(showMessage('Verification code sent to your phone', setError, 'success'));
+    } catch (error) {
+      setMessageType(showMessage('Failed to setup MFA. Ensure phone number is verified.', setError, 'error'));
+    }
+  };
+
+  const handleVerifyMFA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await enrollMFA(verificationId, verificationCode);
+      setMessageType(showMessage('Two-factor authentication enabled successfully', setError, 'success'));
+      setShowMFASetup(false);
+    } catch (error) {
+      setMessageType(showMessage('Invalid verification code', setError, 'error'));
     }
   };
 
@@ -542,6 +564,44 @@ const Profile = () => {
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Security Settings</h2>
+          <div className={`p-4 border rounded-lg ${theme === 'dark' ? 'border-gray-700 bg-gray-700' : 'border-gray-200'}`}>
+            <div id="recaptcha-container"></div>
+            {messageType && (
+              <div className={`mb-4 p-3 rounded ${messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {error}
+              </div>
+            )}
+            {showMFASetup ? (
+              <form onSubmit={handleVerifyMFA} className="space-y-4">
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  placeholder="Enter verification code"
+                  className={`w-full px-3 py-2 border rounded-lg ${
+                    theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'
+                  }`}
+                />
+                <button
+                  type="submit"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                >
+                  Verify and Enable 2FA
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={handleEnableMFA}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+              >
+                Enable Two-Factor Authentication
+              </button>
             )}
           </div>
         </div>

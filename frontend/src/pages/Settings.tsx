@@ -71,7 +71,6 @@ const Settings = () => {
                 >
                   <option value="public">Public</option>
                   <option value="private">Private</option>
-                  <option value="friends">Friends Only</option>
                 </select>
               </div>
 

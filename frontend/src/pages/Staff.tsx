@@ -47,9 +47,17 @@ const Staff = () => {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className={`${isDark ? 'bg-gray-800 text-white' : 'bg-white'} rounded-lg shadow-lg p-6`}>
-        <div className="flex items-center gap-3 mb-8">
-          <Users className="h-8 w-8 text-indigo-400" />
-          <h1 className="text-2xl font-semibold">Staff Management</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Users className="h-8 w-8 text-indigo-400" />
+            <h1 className="text-2xl font-semibold">Staff Management</h1>
+          </div>
+          <button 
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <Users className="h-5 w-5" />
+            Add Staff
+          </button>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 mb-8">

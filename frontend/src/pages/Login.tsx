@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GoogleIcon from '../components/icons/GoogleIcon';
 import { useTheme } from '../context/ThemeContext';
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification, RecaptchaVerifier, signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from "firebase/auth";
 import { getFirestore, setDoc, doc, getDoc } from "firebase/firestore";
+import { handleMFAChallenge } from '../utils/mfa';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
 const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
@@ -89,8 +90,10 @@ initializeApp(firebaseConfig);
 const auth = getAuth();
 const db = getFirestore();
 
-const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>, type: 'success' | 'error' = 'error') => {
+const showMessage = (message: string, setError: React.Dispatch<React.SetStateAction<string>>, type: 'success' | 'error' | 'info' = 'error') => {
   setError(message);
+  // Scroll to top when message is shown
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   setTimeout(() => {
     setError('');
   }, 5000);
@@ -114,9 +117,110 @@ const Login: React.FC = () => {
     address: '',
     profileImage: ''
   });
-  const [messageType, setMessageType] = useState<'success' | 'error'>('error');
+  const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('error');
   const navigate = useNavigate();
   const { theme } = useTheme();
+
+  // Add useRef for the error message container
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // Add useEffect to scroll to error message when it changes
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [error]);
+
+  const [showMFAPrompt, setShowMFAPrompt] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [mfaResolver, setMFAResolver] = useState<any>(null);
+
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationId, setVerificationId] = useState('');
+  const recaptchaVerifier = useRef<RecaptchaVerifier | null>(null);
+
+  useEffect(() => {
+    // Initialize recaptcha only once when component mounts
+    if (!recaptchaVerifier.current) {
+      recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'normal',
+        callback: () => {
+          // reCAPTCHA solved
+        },
+        'expired-callback': () => {
+          // Reset the reCAPTCHA
+          if (recaptchaVerifier.current) {
+            recaptchaVerifier.current.clear();
+            recaptchaVerifier.current = null;
+          }
+        }
+      });
+    }
+
+    // Cleanup function
+    return () => {
+      if (recaptchaVerifier.current) {
+        recaptchaVerifier.current.clear();
+        recaptchaVerifier.current = null;
+      }
+    };
+  }, []);
+
+  const handlePhoneSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      // Format phone number to E.164 format
+      let formattedPhone = phoneNumber;
+      if (!phoneNumber.startsWith('+')) {
+        formattedPhone = '+91' + phoneNumber; // Add Indian country code if not present
+      }
+
+      if (!recaptchaVerifier.current) {
+        recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'normal',
+          callback: () => {
+            // reCAPTCHA solved
+          }
+        });
+      }
+
+      const appVerifier = recaptchaVerifier.current;
+      const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+      setVerificationId(confirmationResult.verificationId);
+      setMessageType(showMessage('Verification code sent to your phone.', setError, 'success'));
+    } catch (error: any) {
+      console.error("Error during phone sign-in", error);
+      if (error.code === 'auth/invalid-phone-number') {
+        setMessageType(showMessage('Invalid phone number format. Please use format: +91XXXXXXXXXX', setError, 'error'));
+      } else if (error.code === 'auth/operation-not-allowed') {
+        setMessageType(showMessage('Phone authentication is not enabled. Please contact support.', setError, 'error'));
+      } else if (error.code === 'auth/billing-not-enabled') {
+        setMessageType(showMessage('Phone authentication is currently unavailable. Please use email or Google sign-in.', setError, 'error'));
+      } else {
+        setMessageType(showMessage('Failed to send verification code. Please try again.', setError, 'error'));
+      }
+
+      // Reset reCAPTCHA on error
+      if (recaptchaVerifier.current) {
+        recaptchaVerifier.current.clear();
+        recaptchaVerifier.current = null;
+      }
+    }
+  };
+
+  const handlePhoneVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
+      const userCredential = await signInWithCredential(auth, credential);
+      setMessageType(showMessage('Phone number verified successfully!', setError, 'success'));
+      navigate('/');
+    } catch (error) {
+      console.error("Error during phone verification", error);
+      setMessageType(showMessage('Invalid verification code', setError, 'error'));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,11 +255,30 @@ const Login: React.FC = () => {
         setMessageType(showMessage('User data not found', setError, 'error'));
       }
     } catch (error: any) {
-      if (error.code === 'auth/invalid-credential') {
-        setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
+      if (error.code === 'auth/multi-factor-auth-required') {
+        setMFAResolver(error);
+        setShowMFAPrompt(true);
+        setMessageType('info');
+        setError('Please enter the verification code sent to your phone.');
       } else {
-        setMessageType(showMessage('Login failed. Please try again.', setError, 'error'));
+        if (error.code === 'auth/invalid-credential') {
+          setMessageType(showMessage('Incorrect Email or Password', setError, 'error'));
+        } else {
+          setMessageType(showMessage('Login failed. Please try again.', setError, 'error'));
+        }
       }
+    }
+  };
+
+  const handleMFAVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await handleMFAChallenge(mfaResolver, verificationCode);
+      // Successfully completed MFA
+      setMessageType(showMessage('Login successful!', setError, 'success'));
+      navigate('/');
+    } catch (error) {
+      setMessageType(showMessage('Invalid verification code', setError, 'error'));
     }
   };
 
@@ -245,6 +368,36 @@ const Login: React.FC = () => {
     }
   };
 
+  if (showMFAPrompt) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white'} p-8 rounded-lg shadow-xl max-w-md mx-auto`}>
+          <h2 className="text-2xl font-bold mb-4">Two-Factor Authentication</h2>
+          <p className="mb-4">Please enter the verification code sent to your phone.</p>
+          
+          <form onSubmit={handleMFAVerification} className="space-y-4">
+            <input
+              type="text"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              placeholder="Enter verification code"
+              className={`w-full px-3 py-2 border rounded-lg ${
+                theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+              }`}
+              required
+            />
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+            >
+              Verify
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[url('https://railmadad-dashboard.web.app/assets/body-bg-BM5rPYaf.jpg')] bg-cover bg-center bg-no-repeat">
       <div className="container mx-auto px-4 flex">
@@ -279,12 +432,17 @@ const Login: React.FC = () => {
                 <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>Access Rail Madad Dashboard</p>
 
                 {error && (
-                  <div className={`p-3 rounded-lg mb-4 ${
-                    messageType === 'success' 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
-                  }`}>
-                    {error}
+                  <div 
+                    ref={errorRef}
+                    className={`p-3 rounded-lg mb-4 ${
+                      messageType === 'success' 
+                      ? 'bg-green-100 text-green-700'
+                      : messageType === 'info'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {error}
                   </div>
                 )}
 
@@ -308,6 +466,55 @@ const Login: React.FC = () => {
                     label="Password"
                     required
                   />
+                  <div>
+                    <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+                      Phone Number (with country code)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="+91XXXXXXXXXX"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                          ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handlePhoneSignIn}
+                        className="whitespace-nowrap bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                      >
+                        Send Code
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Place recaptcha container here */}
+                  <div id="recaptcha-container" className="flex justify-center"></div>
+                  
+                  {verificationId && (
+                    <div>
+                      <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+                        Verification Code
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                            ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={handlePhoneVerification}
+                          className="whitespace-nowrap bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                        >
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}
