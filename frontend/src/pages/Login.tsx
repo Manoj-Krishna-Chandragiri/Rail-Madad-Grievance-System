@@ -7,6 +7,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, Go
 import { getFirestore, setDoc, doc, getDoc } from "firebase/firestore";
 import { handleMFAChallenge } from '../utils/mfa';
 import { sendSMS, validatePhoneNumber, formatPhoneNumber } from '../utils/smsGateway';
+import { handleEmailSignIn, handlePhoneSignIn, validatePhoneVerification, handleMockVerification } from '../utils/authHandlers';
 
 const MALE_DEFAULT_AVATAR = 'https://uxwing.com/wp-content/themes/uxwing/download/peoples-avatars/default-profile-picture-male-icon.png';
 const FEMALE_DEFAULT_AVATAR = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRHEJ-8GyKlZr5ZmEfRMmt5nR4tH_aP-crbgg&s';
@@ -140,6 +141,8 @@ const Login: React.FC = () => {
   const [verificationId, setVerificationId] = useState('');
   const recaptchaVerifier = useRef<RecaptchaVerifier | null>(null);
 
+  const [showPhoneRecovery, setShowPhoneRecovery] = useState(false);
+
   useEffect(() => {
     // Initialize recaptcha only once when component mounts
     if (!recaptchaVerifier.current) {
@@ -167,21 +170,29 @@ const Login: React.FC = () => {
     };
   }, []);
 
+  const handleEmailPasswordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const result = await handleEmailSignIn(email, password);
+      setMessageType(showMessage('Login successful!', setError, 'success'));
+      navigate(result.redirect);
+    } catch (error: any) {
+      console.error('Email sign-in error:', error);
+      setMessageType(showMessage(error.message || 'Login failed', setError, 'error'));
+    }
+  };
+
   const handlePhoneSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       if (!validatePhoneNumber(phoneNumber)) {
-        setMessageType(showMessage('Invalid phone number format. Please use format: +91XXXXXXXXXX', setError, 'error'));
-        return;
+        throw new Error('Invalid phone number format. Please use format: +91XXXXXXXXXX');
       }
 
       const formattedPhone = formatPhoneNumber(phoneNumber);
-      
-      // Generate a 6-digit verification code
       const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // Send verification code via SMS
+
       const smsResult = await sendSMS(
         formattedPhone,
         `Your Rail Madad verification code is: ${verificationCode}`
@@ -191,7 +202,6 @@ const Login: React.FC = () => {
         throw new Error(smsResult.error || 'Failed to send SMS');
       }
 
-      // Store verification data in localStorage temporarily
       localStorage.setItem('verificationData', JSON.stringify({
         code: verificationCode,
         phone: formattedPhone,
@@ -202,7 +212,7 @@ const Login: React.FC = () => {
       setMessageType(showMessage('Verification code sent to your phone.', setError, 'success'));
 
     } catch (error: any) {
-      console.error("Error during phone sign-in", error);
+      console.error("Error during phone sign-in:", error);
       setMessageType(showMessage(error.message || 'Failed to send verification code', setError, 'error'));
     }
   };
@@ -215,42 +225,38 @@ const Login: React.FC = () => {
         throw new Error('Verification session expired');
       }
 
-      const { code, phone, timestamp } = JSON.parse(storedData);
+      const verificationData = JSON.parse(storedData);
       
-      // Check if code is expired (15 minutes)
-      if (Date.now() - timestamp > 15 * 60 * 1000) {
+      if (Date.now() - verificationData.timestamp > 15 * 60 * 1000) {
         localStorage.removeItem('verificationData');
         throw new Error('Verification code expired');
       }
 
-      // Verify the code
-      if (verificationCode !== code) {
-        throw new Error('Invalid verification code');
+      let result;
+      if (process.env.NODE_ENV === 'development') {
+        // Use mock verification in development
+        result = await handleMockVerification(verificationData.phone);
+      } else {
+        // Use real verification in production
+        result = await validatePhoneVerification({
+          ...verificationData,
+          enteredCode: verificationCode
+        });
       }
 
-      // Clear verification data
       localStorage.removeItem('verificationData');
-
-      // Set authentication state
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userPhone', phone);
-      localStorage.setItem('userRole', 'passenger');
-
-      setMessageType(showMessage('Phone number verified successfully!', setError, 'success'));
+      setMessageType(showMessage('Login successful!', setError, 'success'));
       
-      // Delay navigation slightly to show success message
       setTimeout(() => {
-        navigate('/');
+        navigate(result.redirect);
       }, 1500);
 
     } catch (error: any) {
-      console.error("Error during phone verification", error);
+      console.error("Error during phone verification:", error);
       setMessageType(showMessage(error.message || 'Verification failed', setError, 'error'));
       
-      // Clear invalid verification data
-      if (error.message === 'Verification session expired' || error.message === 'Verification code expired') {
+      if (error.message.includes('expired')) {
         localStorage.removeItem('verificationData');
-        // Reset verification state
         setVerificationId('');
         setVerificationCode('');
       }
@@ -461,7 +467,7 @@ const Login: React.FC = () => {
         {/* Right Panel - Login/Signup Form */}
         <div className="w-full lg:w-1/2 lg:pl-16">
           <div className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white'} p-8 rounded-lg shadow-xl max-w-md mx-auto`}>
-            {!showForgotPassword && !showSignUp ? (
+            {!showForgotPassword && !showSignUp && !showPhoneRecovery ? (
               <>
                 <h2 className="text-2xl font-bold mb-2">Sign in to your account</h2>
                 <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>Access Rail Madad Dashboard</p>
@@ -481,7 +487,8 @@ const Login: React.FC = () => {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleEmailPasswordSignIn} className="space-y-4">
+                  {/* Email and Password section */}
                   <div>
                     <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
                       Email address
@@ -501,6 +508,37 @@ const Login: React.FC = () => {
                     label="Password"
                     required
                   />
+                  <div className="flex justify-between items-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm text-indigo-500 hover:text-indigo-400"
+                    >
+                      Forgot password?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPhoneRecovery(true)}
+                      className="text-sm text-indigo-500 hover:text-indigo-400"
+                    >
+                      Sign in with Phone
+                    </button>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+                  >
+                    Sign in with Email
+                  </button>
+
+                  {/* Divider */}
+                  <div className="my-6 flex items-center">
+                    <div className={`flex-1 border-t ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}></div>
+                    <span className={`px-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Or sign in with Phone</span>
+                    <div className={`flex-1 border-t ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}></div>
+                  </div>
+
+                  {/* Phone Number section */}
                   <div>
                     <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
                       Phone Number (with country code)
@@ -589,6 +627,75 @@ const Login: React.FC = () => {
                     Sign up
                   </button>
                 </p>
+              </>
+            ) : showPhoneRecovery ? (
+              <>
+                <h2 className="text-2xl font-bold mb-2">Phone Sign In</h2>
+                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
+                  Enter your phone number to sign in
+                </p>
+
+                <form onSubmit={handlePhoneSignIn} className="space-y-4">
+                  <div>
+                    <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+                      Phone Number (with country code)
+                    </label>
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="+91XXXXXXXXXX"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                        ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      required
+                    />
+                  </div>
+
+                  {verificationId ? (
+                    <div>
+                      <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
+                        Verification Code
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
+                            ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={handlePhoneVerification}
+                          className="whitespace-nowrap bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                        >
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+                    >
+                      Send Code
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPhoneRecovery(false);
+                      setPhoneNumber('');
+                      setVerificationCode('');
+                      setVerificationId('');
+                    }}
+                    className={`w-full border py-2 rounded-lg 
+                      ${theme === 'dark' ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    Back to Login
+                  </button>
+                </form>
               </>
             ) : showSignUp ? (
               <>
