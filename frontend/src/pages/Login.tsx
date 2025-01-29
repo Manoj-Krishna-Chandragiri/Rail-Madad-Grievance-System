@@ -144,31 +144,40 @@ const Login: React.FC = () => {
   const [showPhoneRecovery, setShowPhoneRecovery] = useState(false);
 
   useEffect(() => {
-    // Initialize recaptcha only once when component mounts
-    if (!recaptchaVerifier.current) {
-      recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'normal',
-        callback: () => {
-          // reCAPTCHA solved
-        },
-        'expired-callback': () => {
-          // Reset the reCAPTCHA
-          if (recaptchaVerifier.current) {
-            recaptchaVerifier.current.clear();
-            recaptchaVerifier.current = null;
+    // Only initialize if we're in the phone recovery view
+    if (showPhoneRecovery && !recaptchaVerifier.current) {
+      // Add a small delay to ensure DOM element exists
+      const timer = setTimeout(() => {
+        try {
+          const container = document.getElementById('recaptcha-container');
+          if (container) {
+            recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+              size: 'normal',
+              callback: () => {
+                // reCAPTCHA solved
+              },
+              'expired-callback': () => {
+                if (recaptchaVerifier.current) {
+                  recaptchaVerifier.current.clear();
+                  recaptchaVerifier.current = null;
+                }
+              }
+            });
           }
+        } catch (error) {
+          console.error('Error initializing reCAPTCHA:', error);
         }
-      });
-    }
+      }, 1000);
 
-    // Cleanup function
-    return () => {
-      if (recaptchaVerifier.current) {
-        recaptchaVerifier.current.clear();
-        recaptchaVerifier.current = null;
-      }
-    };
-  }, []);
+      return () => {
+        clearTimeout(timer);
+        if (recaptchaVerifier.current) {
+          recaptchaVerifier.current.clear();
+          recaptchaVerifier.current = null;
+        }
+      };
+    }
+  }, [showPhoneRecovery]); // Add showPhoneRecovery as dependency
 
   const handleEmailPasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,23 +241,23 @@ const Login: React.FC = () => {
         throw new Error('Verification code expired');
       }
 
-      let result;
-      if (process.env.NODE_ENV === 'development') {
-        // Use mock verification in development
-        result = await handleMockVerification(verificationData.phone);
-      } else {
-        // Use real verification in production
-        result = await validatePhoneVerification({
-          ...verificationData,
-          enteredCode: verificationCode
-        });
+      // Check if entered code matches stored code
+      if (verificationCode !== verificationData.code) {
+        throw new Error('Invalid verification code');
       }
 
+      // Clear verification data from storage
       localStorage.removeItem('verificationData');
+      
+      // Set authentication state
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('userRole', 'passenger');
+      
       setMessageType(showMessage('Login successful!', setError, 'success'));
       
+      // Navigate after success message
       setTimeout(() => {
-        navigate(result.redirect);
+        navigate('/');
       }, 1500);
 
     } catch (error: any) {
@@ -518,7 +527,10 @@ const Login: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowPhoneRecovery(true)}
+                      onClick={() => {
+                        setShowPhoneRecovery(true);
+                        setMessageType(showMessage('Verification code will be sent to your phone', setError, 'info'));
+                      }}
                       className="text-sm text-indigo-500 hover:text-indigo-400"
                     >
                       Sign in with Phone
@@ -529,77 +541,6 @@ const Login: React.FC = () => {
                     className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
                   >
                     Sign in with Email
-                  </button>
-
-                  {/* Divider */}
-                  <div className="my-6 flex items-center">
-                    <div className={`flex-1 border-t ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}></div>
-                    <span className={`px-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Or sign in with Phone</span>
-                    <div className={`flex-1 border-t ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}></div>
-                  </div>
-
-                  {/* Phone Number section */}
-                  <div>
-                    <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
-                      Phone Number (with country code)
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+91XXXXXXXXXX"
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
-                          ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={handlePhoneSignIn}
-                        className="whitespace-nowrap bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                      >
-                        Send Code
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Place recaptcha container here */}
-                  <div id="recaptcha-container" className="flex justify-center"></div>
-                  
-                  {verificationId && (
-                    <div>
-                      <label className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'} mb-1`}>
-                        Verification Code
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={verificationCode}
-                          onChange={(e) => setVerificationCode(e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
-                            ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                        />
-                        <button
-                          type="button"
-                          onClick={handlePhoneVerification}
-                          className="whitespace-nowrap bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-                        >
-                          Verify
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotPassword(true)}
-                    className="text-sm text-indigo-500 hover:text-indigo-400"
-                  >
-                    Forgot password?
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
-                  >
-                    Sign in
                   </button>
                 </form>
 
@@ -631,9 +572,27 @@ const Login: React.FC = () => {
             ) : showPhoneRecovery ? (
               <>
                 <h2 className="text-2xl font-bold mb-2">Phone Sign In</h2>
-                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
-                  Enter your phone number to sign in
-                </p>
+                {verificationId ? (
+                  <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
+                    Verification code sent to your phone
+                  </p>
+                ) : (
+                  <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-6`}>
+                    Enter your phone number to sign in
+                  </p>
+                )}
+                
+                {error && (
+                  <div ref={errorRef} className={`p-3 rounded-lg mb-4 ${
+                    messageType === 'success' 
+                      ? 'bg-green-100 text-green-700'
+                      : messageType === 'info'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-red-100 text-red-700'
+                  }`}>
+                    {error}
+                  </div>
+                )}
 
                 <form onSubmit={handlePhoneSignIn} className="space-y-4">
                   <div>
@@ -650,6 +609,9 @@ const Login: React.FC = () => {
                       required
                     />
                   </div>
+
+                  {/* Place recaptcha container here */}
+                  <div id="recaptcha-container" className="flex justify-center my-4"></div>
 
                   {verificationId ? (
                     <div>
