@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -31,43 +31,42 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 const App = () => {
   return (
     <ThemeProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/"
-              element={
-                <PrivateRoute>
-                  <Layout />
-                </PrivateRoute>
-              }
-            >
-              {/* Common Routes */}
-              <Route index element={<Home />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="real-time-support" element={<RealTimeSupport />} />
-              <Route path="multi-lingual" element={<MultiLingual />} />
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Layout />
+              </PrivateRoute>
+            }
+          >
+            {/* Common Routes */}
+            <Route index element={<Home />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="real-time-support" element={<RealTimeSupport />} />
+            <Route path="multi-lingual" element={<MultiLingual />} />
 
-              {/* Admin Routes */}
-              <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
-              <Route path="smart-classification" element={<AdminRoute><SmartClassification /></AdminRoute>} />
-              <Route path="real-time-support" element={<AdminRoute><RealTimeSupport /></AdminRoute>} />
-              <Route path="quick-resolution" element={<AdminRoute><QuickResolution /></AdminRoute>} />
-              <Route path="multi-lingual" element={<AdminRoute><MultiLingual /></AdminRoute>} />
-              <Route path="staff" element={<AdminRoute><Staff /></AdminRoute>} />
+            {/* Admin Routes */}
+            <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+            <Route path="smart-classification" element={<AdminRoute><SmartClassification /></AdminRoute>} />
+            <Route path="real-time-support" element={<AdminRoute><RealTimeSupport /></AdminRoute>} />
+            <Route path="quick-resolution" element={<AdminRoute><QuickResolution /></AdminRoute>} />
+            <Route path="multi-lingual" element={<AdminRoute><MultiLingual /></AdminRoute>} />
+            <Route path="staff" element={<AdminRoute><Staff /></AdminRoute>} />
 
-              {/* Passenger Routes */}
-              <Route path="file-complaint" element={<FileComplaint />} />
-              <Route path="track-status" element={<TrackStatus />} />
-              <Route path="ai-assistance" element={<AIAssistance />} />
-              <Route path="help" element={<Help />} />
-              <Route path="feedback-form" element={<FeedbackForm />} />
-            </Route>
-          </Routes>
-        </div>
-      </Router>
+            {/* Passenger Routes */}
+            <Route path="file-complaint" element={<FileComplaint />} />
+            <Route path="track-status" element={<TrackStatus />} />
+            <Route path="ai-assistance" element={<AIAssistance />} />
+            <Route path="help" element={<Help />} />
+            <Route path="feedback-form" element={<FeedbackForm />} />
+          </Route>
+        </Routes>
+        <Outlet />
+      </div>
     </ThemeProvider>
   );
 };

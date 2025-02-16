@@ -1,6 +1,7 @@
 import { FileUp, Camera, Mic, MicOff } from 'lucide-react'; // Remove Paperclip import
 import { useState, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import axios from "axios";
 
 const FileComplaint = () => {
   const { theme } = useTheme();
@@ -11,7 +12,7 @@ const FileComplaint = () => {
     trainNumber: '',
     pnrNumber: '',
     severity: 'Medium',
-    dateOfIncident: '' // Add dateOfIncident to formData
+    date_of_incident: '' // Add dateOfIncident to formData
   });
 
   const [photos, setPhotos] = useState<File[]>([]);
@@ -19,15 +20,34 @@ const FileComplaint = () => {
   const [isRecording, setIsRecording] = useState(false);
   // Remove attachments state and fileInputRef
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Complaint submitted:', { ...formData, photos });
+    
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/api/complaints/file/`,
+        JSON.stringify(formData),  // Convert to JSON
+        {
+          headers: {
+            "Content-Type": "application/json",
+          }
+        }
+      );
+      console.log("Complaint submitted:", response.data);
+      alert("Complaint submitted successfully!");
+    } catch (error: any) {
+      console.error("Error submitting:", error.response?.data || error);
+      alert("Failed to submit complaint.");
+    }
   };
+  
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const { name, value } = e.target;
+  setFormData(prev => ({ ...prev, [name]: value }));
+};
+
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -177,8 +197,8 @@ const FileComplaint = () => {
             </label>
             <input
               type="date"
-              name="dateOfIncident"
-              value={formData.dateOfIncident}
+              name="date_of_incident"
+              value={formData.date_of_incident}
               onChange={handleChange}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
                 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
