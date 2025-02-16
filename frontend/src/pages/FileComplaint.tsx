@@ -3,14 +3,24 @@ import { useState, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import axios from "axios";
 
+interface ComplaintFormData {
+  type: string;
+  description: string;
+  location: string;
+  train_number: string;  // Changed from trainNumber
+  pnr_number: string;    // Changed from pnrNumber
+  severity: string;
+  date_of_incident: string;
+}
+
 const FileComplaint = () => {
   const { theme } = useTheme();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ComplaintFormData>({
     type: '',
     description: '',
     location: '',
-    trainNumber: '',
-    pnrNumber: '',
+    train_number: '',  // Changed from trainNumber
+    pnr_number: '',    // Changed from pnrNumber
     severity: 'Medium',
     date_of_incident: '' // Add dateOfIncident to formData
   });
@@ -24,17 +34,41 @@ const FileComplaint = () => {
     e.preventDefault();
     
     try {
+      const formDataToSend = new FormData();
+      
+      // Type-safe way to append form data
+      (Object.keys(formData) as Array<keyof ComplaintFormData>).forEach(key => {
+        formDataToSend.append(key, formData[key]);
+      });
+      
+      // Append photos with index to ensure unique keys
+      photos.forEach((photo) => {
+        formDataToSend.append('photos', photo, photo.name);
+      });
+
       const response = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/complaints/file/`,
-        JSON.stringify(formData),  // Convert to JSON
+        formDataToSend,
         {
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           }
         }
       );
       console.log("Complaint submitted:", response.data);
       alert("Complaint submitted successfully!");
+      
+      // Clear form after successful submission
+      setFormData({
+        type: '',
+        description: '',
+        location: '',
+        train_number: '',  // Changed from trainNumber
+        pnr_number: '',    // Changed from pnrNumber
+        severity: 'Medium',
+        date_of_incident: ''
+      });
+      setPhotos([]);
     } catch (error: any) {
       console.error("Error submitting:", error.response?.data || error);
       alert("Failed to submit complaint.");
@@ -149,8 +183,8 @@ const FileComplaint = () => {
             </label>
             <input
               type="text"
-              name="trainNumber"
-              value={formData.trainNumber}
+              name="train_number"  // Changed from trainNumber
+              value={formData.train_number}  // Changed from trainNumber
               onChange={handleChange}
               placeholder="Enter train number"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
@@ -165,8 +199,8 @@ const FileComplaint = () => {
             </label>
             <input
               type="text"
-              name="pnrNumber"
-              value={formData.pnrNumber}
+              name="pnr_number"   // Changed from pnrNumber
+              value={formData.pnr_number}   // Changed from pnrNumber
               onChange={handleChange}
               placeholder="Enter PNR number"
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 
