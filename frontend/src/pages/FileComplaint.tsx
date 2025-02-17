@@ -154,7 +154,6 @@ const FileComplaint = () => {
               <option value="coach-maintenance">Coach - Maintenance/Facilities</option>
               <option value="electrical">Electrical Equipment</option>
               <option value="medical">Medical Assistance</option>
-              <option value="medical">Medical Assistance</option>
               <option value="catering">Catering / Vending Services</option>
               <option value="passenger-behaviour">Passengers Behaviour</option>
               <option value="water">Water Availability</option>
