@@ -30,21 +30,32 @@ const FileComplaint = () => {
   const [isRecording, setIsRecording] = useState(false);
   // Remove attachments state and fileInputRef
 
+  const generateRandomString = (length: number): string => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const array = new Uint8Array(length);
+    crypto.getRandomValues(array);
+    return Array.from(array)
+      .map(byte => chars[byte % chars.length])
+      .join('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       const formDataToSend = new FormData();
       
-      // Type-safe way to append form data
-      (Object.keys(formData) as Array<keyof ComplaintFormData>).forEach(key => {
-        formDataToSend.append(key, formData[key]);
+      Object.entries(formData).forEach(([key, value]) => {
+        formDataToSend.append(key, value?.toString() || '');
       });
       
-      // Append photos with index to ensure unique keys
-      photos.forEach((photo) => {
-        formDataToSend.append('photos', photo, photo.name);
-      });
+      if (photos.length > 0) {
+        const photo = photos[0];
+        const extension = photo.name.split('.').pop() || 'png';
+        const uniqueId = generateRandomString(32);
+        const fileName = `${uniqueId}.${extension}`;
+        formDataToSend.append('photos', photo, fileName);
+      }
 
       const response = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/complaints/file/`,
@@ -142,6 +153,7 @@ const FileComplaint = () => {
               <option value="">Select Type</option>
               <option value="coach-maintenance">Coach - Maintenance/Facilities</option>
               <option value="electrical">Electrical Equipment</option>
+              <option value="medical">Medical Assistance</option>
               <option value="medical">Medical Assistance</option>
               <option value="catering">Catering / Vending Services</option>
               <option value="passenger-behaviour">Passengers Behaviour</option>

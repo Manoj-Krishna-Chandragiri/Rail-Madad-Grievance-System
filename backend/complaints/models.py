@@ -22,6 +22,11 @@ class Complaint(models.Model):
     date_of_incident = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
     staff = models.CharField(max_length=255, blank=True, null=True)
+    photos = models.CharField(max_length=255, blank=True, null=True)  # Increased max_length
+
+    def save(self, *args, **kwargs):
+        # Don't modify the photos path as it's now handled in the view
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.type} - {self.status}"

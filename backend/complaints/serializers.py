@@ -4,12 +4,13 @@ from .models import Complaint
 class ComplaintSerializer(serializers.ModelSerializer):
     class Meta:
         model = Complaint
-        fields = '__all__'  # Ensure all fields are included
+        fields = '__all__'
 
-    def validate(self, data):
-        """Custom validation (optional)"""
-        if not data.get('description'):
-            raise serializers.ValidationError({"description": "This field is required."})
-        if not data.get('type'):
-            raise serializers.ValidationError({"type": "Complaint type is required."})
-        return data
+    def validate_photos(self, value):
+        # Allow both string (filepath) and None values
+        if value and not isinstance(value, str):
+            raise serializers.ValidationError("Photos must be a valid file path")
+        return value
+
+    def create(self, validated_data):
+        return Complaint.objects.create(**validated_data)
