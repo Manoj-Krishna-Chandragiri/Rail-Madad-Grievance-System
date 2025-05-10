@@ -1,20 +1,20 @@
 import axios from 'axios';
-
+ 
 const API_URL = 'http://localhost:8000/api';
-
+ 
 // Create axios instance with retry functionality
 const axiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: 60000, // Increase timeout to 60 seconds
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
 });
-
+ 
 // Add retry interceptor
 axiosInstance.interceptors.response.use(undefined, async (err) => {
-  const { config, message } = err;
+  const { config } = err;
   if (!config || !config.retry) {
     return Promise.reject(err);
   }
@@ -25,7 +25,7 @@ axiosInstance.interceptors.response.use(undefined, async (err) => {
   await new Promise(resolve => setTimeout(resolve, config.retryDelay || 1000));
   return axiosInstance(config);
 });
-
+ 
 interface FeedbackData {
   complaint_id: string;
   feedback_message: string;
@@ -35,38 +35,42 @@ interface FeedbackData {
   name?: string;
   email?: string;
 }
-
+ 
 export const feedbackService = {
   submitFeedback: async (data: FeedbackData) => {
     try {
       const response = await axiosInstance.post('/complaints/feedback/', {
-        complaint: data.complaint_id,  // This will now be the complaint type string
-        feedback_message: `Category: ${data.category}\nSubcategory: ${data.subcategory}\n\n${data.feedback_message}`,
+        complaint_id: data.complaint_id,
+        category: data.category || '',
+        subcategory: data.subcategory || '',
+        feedback_message: data.feedback_message,
         rating: data.rating,
-        user_name: data.name,
-        user_email: data.email
+        name: data.name || '',
+        email: data.email || ''
       });
       return response.data;
     } catch (error: any) {
       console.error('Submission error details:', error);
-      if (error.response?.data?.detail) {
-        throw new Error(error.response.data.detail);
+      // Better error reporting
+      if (error.response?.data) {
+        const data = error.response.data;
+        const errorMessages = typeof data === 'object'
+          ? Object.entries(data).map(([field, msg]) => `${field}: ${Array.isArray(msg) ? msg.join(', ') : msg}`).join('\n')
+          : data;
+        throw new Error(errorMessages || 'Failed to submit feedback');
       }
       throw new Error('Failed to submit feedback');
     }
   },
-
+ 
   getFeedback: async (complaintId: string) => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API_URL}/complaints/feedback/?complaint_id=${complaintId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await axiosInstance.get(`/complaints/feedback/?complaint_id=${complaintId}`);
       return response.data;
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      console.error('Fetching error:', error);
+      throw new Error('Failed to fetch feedback');
     }
   }
 };
+ 

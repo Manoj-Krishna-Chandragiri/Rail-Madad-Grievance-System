@@ -1,19 +1,19 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+ 
 class Complaint(models.Model):
     STATUS_CHOICES = [
         ('Open', 'Open'),
         ('In Progress', 'In Progress'),
         ('Closed', 'Closed'),
     ]
-
+ 
     SEVERITY_CHOICES = [
         ('Low', 'Low'),
         ('Medium', 'Medium'),
         ('High', 'High'),
     ]
-
+ 
     type = models.CharField(max_length=100)
     description = models.TextField()
     location = models.CharField(max_length=255, blank=True, null=True)
@@ -25,10 +25,22 @@ class Complaint(models.Model):
     staff = models.CharField(max_length=255, blank=True, null=True)
     photos = models.CharField(max_length=255, blank=True, null=True)  # Increased max_length
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-
+ 
     def save(self, *args, **kwargs):
         # Don't modify the photos path as it's now handled in the view
         super().save(*args, **kwargs)
-
+ 
     def __str__(self):
         return f"{self.type} - {self.status}"
+class Feedback(models.Model):
+    complaint_id = models.CharField(max_length=100)
+    category = models.CharField(max_length=100)
+    subcategory = models.CharField(max_length=100)
+    feedback_message = models.TextField()
+    rating = models.IntegerField()
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    submitted_at = models.DateTimeField(auto_now_add=True)
+ 
+    def __str__(self):
+        return f"{self.name} - {self.complaint_id}"

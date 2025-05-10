@@ -10,13 +10,18 @@ from django.contrib.auth.models import User
 from .models import Complaint
 from .serializers import ComplaintSerializer
 import os
-
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Feedback
+from .serializers import FeedbackSerializer
+ 
 @api_view(["POST"])
 def file_complaint(request):
     try:
         photo = request.FILES.get('photos')
         data = request.data.copy()
-
+ 
         if photo:
             filename = os.path.basename(photo.name)
             save_path = os.path.join('backend', 'media', 'complaints', filename)
@@ -26,52 +31,52 @@ def file_complaint(request):
                 for chunk in photo.chunks():
                     destination.write(chunk)
             data['photos'] = save_path.replace('\\', '/')
-
+ 
         if request.user and request.user.is_authenticated:
             data['user'] = request.user.id
-
+ 
         serializer = ComplaintSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return JsonResponse({"message": "Complaint filed successfully"}, status=201)
         return JsonResponse(serializer.errors, status=400)
-
+ 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
-
-
+ 
+ 
 @api_view(['GET'])
 def user_complaints(request):
     complaints = Complaint.objects.all().order_by('-date_of_incident')
     serializer = ComplaintSerializer(complaints, many=True)
     return Response(serializer.data)
-
-
+ 
+ 
 @api_view(['GET', 'PUT'])
 def complaint_detail(request, complaint_id):
     try:
         complaint = Complaint.objects.get(id=complaint_id)
     except Complaint.DoesNotExist:
         return Response({'error': 'Complaint not found'}, status=status.HTTP_404_NOT_FOUND)
-
+ 
     if request.method == 'GET':
         serializer = ComplaintSerializer(complaint)
         return Response(serializer.data)
-
+ 
     elif request.method == 'PUT':
         serializer = ComplaintSerializer(complaint, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+ 
+ 
 @api_view(['GET'])
 def complaint_list(request):
     complaints = list(Complaint.objects.values())
     return JsonResponse(complaints, safe=False)
-
-
+ 
+ 
 @api_view(['GET'])
 def admin_profile(request):
     try:
@@ -80,9 +85,9 @@ def admin_profile(request):
             return Response({'error': 'Not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_staff:
             return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
-
+ 
         token, _ = Token.objects.get_or_create(user=user)
-
+ 
         data = {
             'full_name': f"{user.first_name} {user.last_name}".strip() or "Admin User",
             'email': user.email,
@@ -94,3 +99,28 @@ def admin_profile(request):
         return Response(data)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+@api_view(['POST'])
+def submit_feedback(request):
+    serializer = FeedbackSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"message": "Feedback submitted successfully"}, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+@api_view(['GET', 'POST'])
+def feedback_view(request):
+    if request.method == 'POST':
+        serializer = FeedbackSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Feedback submitted successfully'}, status=201)
+        return Response(serializer.errors, status=400)
+ 
+    elif request.method == 'GET':
+        complaint_id = request.GET.get('complaint_id')
+        if not complaint_id:
+            return Response({'error': 'complaint_id parameter is required'}, status=400)
+        feedbacks = Feedback.objects.filter(complaint=complaint_id).order_by('-created_at')
+        serializer = FeedbackSerializer(feedbacks, many=True)
+        return Response(serializer.data, status=200)
+ 
+ 

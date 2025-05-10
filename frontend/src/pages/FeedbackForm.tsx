@@ -3,12 +3,12 @@ import { useTheme } from '../context/ThemeContext';
 import { Star } from 'lucide-react';
 import { feedbackService } from '../services/feedbackService';
 import { useParams, useNavigate } from 'react-router-dom';
-
+ 
 interface Complaint {
   id: string;
   title: string;
 }
-
+ 
 // Add predefined complaint categories
 const complaintCategories = [
   { id: 'cleanliness', title: 'Cleanliness Issues', subcategories: [
@@ -42,7 +42,7 @@ const complaintCategories = [
     'Safety Concerns',
   ]},
 ];
-
+ 
 // Add default complaints list
 const defaultComplaints: Complaint[] = [
   { id: 'delay', title: 'Train Delay/Late Running' },
@@ -61,7 +61,7 @@ const defaultComplaints: Complaint[] = [
   { id: 'pnr', title: 'PNR/Ticket Related Issue' },
   { id: 'other', title: 'Other Issue' }
 ];
-
+ 
 const FeedbackForm = () => {
   const { theme } = useTheme();
   const { complaintId } = useParams<{ complaintId: string }>();
@@ -78,7 +78,7 @@ const FeedbackForm = () => {
   const [selectedComplaintId, setSelectedComplaintId] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
-
+ 
   useEffect(() => {
     // Initialize with default complaints instead of fetching
     setComplaints(defaultComplaints);
@@ -86,7 +86,7 @@ const FeedbackForm = () => {
       setSelectedComplaintId(defaultComplaints[0].id);
     }
   }, []);
-
+ 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFeedback(prev => ({
@@ -94,25 +94,25 @@ const FeedbackForm = () => {
       [name]: value
     }));
   };
-
+ 
   const handleStarClick = (rating: number) => {
     setFeedback(prev => ({
       ...prev,
       rating
     }));
   };
-
+ 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
+ 
     if (!selectedComplaintId || !selectedCategory || !selectedSubcategory) {
       setError('Please fill in all required fields');
       setLoading(false);
       return;
     }
-
+ 
     try {
       const complaintInfo = complaints.find(c => c.id === selectedComplaintId);
       const feedbackData = {
@@ -124,10 +124,10 @@ const FeedbackForm = () => {
         name: feedback.name,
         email: feedback.email
       };
-
+ 
       await feedbackService.submitFeedback(feedbackData);
       alert('Feedback submitted successfully!');
-      navigate('/complaints');
+      navigate('/zz');
     } catch (err: any) {
       console.error('Submission error:', err);
       setError(err.message || 'Failed to submit feedback');
@@ -135,22 +135,22 @@ const FeedbackForm = () => {
       setLoading(false);
     }
   };
-
-  const inputClass = theme === 'dark' 
-    ? 'bg-gray-700 border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500' 
+ 
+  const inputClass = theme === 'dark'
+    ? 'bg-gray-700 border-gray-600 text-white focus:ring-indigo-500 focus:border-indigo-500'
     : 'bg-white border-gray-300 text-gray-900 focus:ring-indigo-500 focus:border-indigo-500';
-
+ 
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className={`${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white'} rounded-lg shadow-lg p-6`}>
         <h1 className="text-3xl font-bold text-center mb-8">Feedback Form</h1>
-        
+       
         {error && (
           <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
             {error}
           </div>
         )}
-
+ 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="complaint" className="block mb-2 text-sm font-medium">
@@ -171,7 +171,7 @@ const FeedbackForm = () => {
               ))}
             </select>
           </div>
-
+ 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="category" className="block mb-2 text-sm font-medium">
@@ -195,7 +195,7 @@ const FeedbackForm = () => {
                 ))}
               </select>
             </div>
-
+ 
             {selectedCategory && (
               <div>
                 <label htmlFor="subcategory" className="block mb-2 text-sm font-medium">
@@ -220,7 +220,7 @@ const FeedbackForm = () => {
               </div>
             )}
           </div>
-
+ 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="name" className="block mb-2 text-sm font-medium">Name</label>
@@ -234,7 +234,7 @@ const FeedbackForm = () => {
                 required
               />
             </div>
-
+ 
             <div>
               <label htmlFor="email" className="block mb-2 text-sm font-medium">Email</label>
               <input
@@ -248,7 +248,7 @@ const FeedbackForm = () => {
               />
             </div>
           </div>
-
+ 
           <div>
             <label className="block mb-2 text-sm font-medium">Rate Your Experience</label>
             <div className="flex items-center space-x-2">
@@ -259,10 +259,10 @@ const FeedbackForm = () => {
                   onClick={() => handleStarClick(star)}
                   className="focus:outline-none"
                 >
-                  <Star 
+                  <Star
                     className={`h-8 w-8 ${
-                      star <= feedback.rating 
-                        ? 'text-yellow-500 fill-current' 
+                      star <= feedback.rating
+                        ? 'text-yellow-500 fill-current'
                         : (theme === 'dark' ? 'text-gray-600' : 'text-gray-300')
                     }`}
                   />
@@ -273,7 +273,7 @@ const FeedbackForm = () => {
               </span>
             </div>
           </div>
-
+ 
           <div>
             <label htmlFor="message" className="block mb-2 text-sm font-medium">Your Feedback</label>
             <textarea
@@ -286,14 +286,14 @@ const FeedbackForm = () => {
               required
             />
           </div>
-
+ 
           <div className="text-center">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
-                theme === 'dark' 
-                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                theme === 'dark'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
                   : 'bg-indigo-500 hover:bg-indigo-600 text-white'
               } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
@@ -305,5 +305,5 @@ const FeedbackForm = () => {
     </div>
   );
 };
-
+ 
 export default FeedbackForm;
