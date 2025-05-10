@@ -1,59 +1,54 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAdminUser
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.response import Response
 from rest_framework import status, viewsets
+from rest_framework.authtoken.models import Token
 from django.http import JsonResponse
-from django.core.files.storage import default_storage
 from django.conf import settings
-import os
+from django.contrib.auth.models import User
 from .models import Complaint
 from .serializers import ComplaintSerializer
+import os
 
 @api_view(["POST"])
 def file_complaint(request):
     try:
         photo = request.FILES.get('photos')
-        data = request.data.dict()
-        
+        data = request.data.copy()
+
         if photo:
-            # Generate consistent path format
             filename = os.path.basename(photo.name)
             save_path = os.path.join('backend', 'media', 'complaints', filename)
-            db_path = save_path.replace('\\', '/')  # Ensure forward slashes
-            
-            # Create full system path for saving
             full_path = os.path.join(settings.BASE_DIR, 'media', 'complaints', filename)
             os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
-            # Save the file
             with open(full_path, 'wb+') as destination:
                 for chunk in photo.chunks():
                     destination.write(chunk)
-            
-            # Store the consistent path in database
-            data['photos'] = db_path
-        
+            data['photos'] = save_path.replace('\\', '/')
+
+        if request.user and request.user.is_authenticated:
+            data['user'] = request.user.id
+
         serializer = ComplaintSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return JsonResponse({"message": "Complaint filed successfully"}, status=201)
-        else:
-            print("Validation errors:", serializer.errors)
-            return JsonResponse(serializer.errors, status=400)
-            
+        return JsonResponse(serializer.errors, status=400)
+
     except Exception as e:
-        print(f"Error in file_complaint: {str(e)}")
         return JsonResponse({"error": str(e)}, status=400)
+
 
 @api_view(['GET'])
 def user_complaints(request):
-    """Fetch all complaints."""
-    complaints = Complaint.objects.all()
+    complaints = Complaint.objects.all().order_by('-date_of_incident')
     serializer = ComplaintSerializer(complaints, many=True)
     return Response(serializer.data)
 
+
 @api_view(['GET', 'PUT'])
 def complaint_detail(request, complaint_id):
-    """Fetch or update a specific complaint."""
     try:
         complaint = Complaint.objects.get(id=complaint_id)
     except Complaint.DoesNotExist:
@@ -70,51 +65,32 @@ def complaint_detail(request, complaint_id):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['GET'])
 def complaint_list(request):
-    """Returns all complaints as a JSON response."""
     complaints = list(Complaint.objects.values())
     return JsonResponse(complaints, safe=False)
 
+
 @api_view(['GET'])
-def get_complaints(request):
-    complaints = Complaint.objects.all().order_by('-date_of_incident')
-    serializer = ComplaintSerializer(complaints, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+def admin_profile(request):
+    try:
+        user = request.user
+        if not user.is_authenticated:
+            return Response({'error': 'Not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user.is_staff:
+            return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
-class ComplaintViewSet(viewsets.ModelViewSet):
-    queryset = Complaint.objects.all()
-    serializer_class = ComplaintSerializer
+        token, _ = Token.objects.get_or_create(user=user)
 
-    def create(self, request, *args, **kwargs):
-        try:
-            photos = request.FILES.get('photos')
-            data = request.data.copy()
-            
-            if photos:
-                filename = os.path.basename(photos.name)
-                save_path = os.path.join('backend', 'media', 'complaints', filename)
-                db_path = save_path.replace('\\', '/')  # Ensure forward slashes
-                full_path = os.path.join(settings.BASE_DIR, 'media', 'complaints', filename)
-                
-                os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                
-                with open(full_path, 'wb+') as destination:
-                    for chunk in photos.chunks():
-                        destination.write(chunk)
-                
-                data['photos'] = db_path
-            
-            serializer = self.get_serializer(data=data)
-            if serializer.is_valid():
-                self.perform_create(serializer)
-                headers = self.get_success_headers(serializer.data)
-                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-        except Exception as e:
-            print(f"Error creating complaint: {str(e)}")
-            return Response(
-                {"error": "Failed to create complaint"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        data = {
+            'full_name': f"{user.first_name} {user.last_name}".strip() or "Admin User",
+            'email': user.email,
+            'phone_number': getattr(user, 'phone_number', ''),
+            'gender': getattr(user, 'gender', ''),
+            'address': getattr(user, 'address', ''),
+            'token': token.key
+        }
+        return Response(data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

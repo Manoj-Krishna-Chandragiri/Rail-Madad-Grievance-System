@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Complaint(models.Model):
     STATUS_CHOICES = [
@@ -23,6 +24,7 @@ class Complaint(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
     staff = models.CharField(max_length=255, blank=True, null=True)
     photos = models.CharField(max_length=255, blank=True, null=True)  # Increased max_length
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         # Don't modify the photos path as it's now handled in the view
