@@ -1,0 +1,8 @@
+{
+  "short_name": "Rail Madad",
+  "name": "Rail Madad - Indian Railways Complaint Management",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#ffffff"
+}
