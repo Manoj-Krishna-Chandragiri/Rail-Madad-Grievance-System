@@ -29,6 +29,7 @@ interface StaffMember {
   rating: number;
   active_tickets: number;
   languages: string[];
+  communication_preferences: string[]; // Add this new field
 }
 
 const Staff = () => {
@@ -47,7 +48,8 @@ const Staff = () => {
     location: '',
     status: 'active',
     expertise: [],
-    languages: []
+    languages: [],
+    communication_preferences: ['Chat'] // Default to Chat
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
@@ -127,7 +129,10 @@ const Staff = () => {
             : (Array.isArray(staff.expertise) ? staff.expertise : []),
           languages: typeof staff.languages === 'string' 
             ? JSON.parse(staff.languages || '[]') 
-            : (Array.isArray(staff.languages) ? staff.languages : [])
+            : (Array.isArray(staff.languages) ? staff.languages : []),
+          communication_preferences: typeof staff.communication_preferences === 'string' 
+            ? JSON.parse(staff.communication_preferences || '["Chat"]') 
+            : (Array.isArray(staff.communication_preferences) ? staff.communication_preferences : ['Chat'])
         };
       });
       
@@ -207,6 +212,7 @@ const Staff = () => {
       formData.append('status', newStaff.status || 'active');
       formData.append('expertise', JSON.stringify(newStaff.expertise || []));
       formData.append('languages', JSON.stringify(newStaff.languages || []));
+      formData.append('communication_preferences', JSON.stringify(newStaff.communication_preferences || ['Chat']));
       formData.append('rating', '0');
       formData.append('active_tickets', '0');
       
@@ -239,7 +245,10 @@ const Staff = () => {
           : JSON.parse(response.data.expertise || '[]'),
         languages: Array.isArray(response.data.languages)
           ? response.data.languages
-          : JSON.parse(response.data.languages || '[]')
+          : JSON.parse(response.data.languages || '[]'),
+        communication_preferences: Array.isArray(response.data.communication_preferences)
+          ? response.data.communication_preferences
+          : JSON.parse(response.data.communication_preferences || '["Chat"]')
       };
 
       // Add to staff list
@@ -255,7 +264,8 @@ const Staff = () => {
         location: '',
         status: 'active',
         expertise: [],
-        languages: []
+        languages: [],
+        communication_preferences: ['Chat']
       });
       setAvatarFile(null);
       setAvatarPreview('');
@@ -311,6 +321,20 @@ const Staff = () => {
       setNewStaff({
         ...newStaff,
         languages: [...(newStaff.languages || []), language]
+      });
+    }
+  };
+
+  const handleCommunicationPrefChange = (pref: string) => {
+    if (newStaff.communication_preferences?.includes(pref)) {
+      setNewStaff({
+        ...newStaff,
+        communication_preferences: newStaff.communication_preferences.filter(p => p !== pref)
+      });
+    } else {
+      setNewStaff({
+        ...newStaff,
+        communication_preferences: [...(newStaff.communication_preferences || []), pref]
       });
     }
   };
@@ -418,7 +442,8 @@ const Staff = () => {
       status: staff.status,
       avatar: staff.avatar,
       expertise: Array.isArray(staff.expertise) ? staff.expertise : [],
-      languages: Array.isArray(staff.languages) ? staff.languages : []
+      languages: Array.isArray(staff.languages) ? staff.languages : [],
+      communication_preferences: Array.isArray(staff.communication_preferences) ? staff.communication_preferences : ['Chat']
     });
     setAvatarPreview(staff.avatar); // Set the current avatar for preview
     setShowEditModal(true);
@@ -445,6 +470,7 @@ const Staff = () => {
       formData.append('status', newStaff.status || 'active');
       formData.append('expertise', JSON.stringify(newStaff.expertise || []));
       formData.append('languages', JSON.stringify(newStaff.languages || []));
+      formData.append('communication_preferences', JSON.stringify(newStaff.communication_preferences || ['Chat']));
       
       // Append avatar file if selected
       if (avatarFile) {
@@ -477,7 +503,10 @@ const Staff = () => {
                 : JSON.parse(response.data.expertise || '[]'),
               languages: Array.isArray(response.data.languages)
                 ? response.data.languages
-                : JSON.parse(response.data.languages || '[]')
+                : JSON.parse(response.data.languages || '[]'),
+              communication_preferences: Array.isArray(response.data.communication_preferences)
+                ? response.data.communication_preferences
+                : JSON.parse(response.data.communication_preferences || '["Chat"]')
             } 
           : staff
       ));
@@ -492,7 +521,8 @@ const Staff = () => {
         location: '',
         status: 'active',
         expertise: [],
-        languages: []
+        languages: [],
+        communication_preferences: ['Chat']
       });
       setAvatarFile(null);
       setAvatarPreview('');
@@ -1026,6 +1056,31 @@ const Staff = () => {
               </div>
             </div>
 
+            <div className="mt-6">
+              <label className={`block text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'} mb-2`}>
+                Communication Preferences
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {['Chat', 'Voice', 'Video'].map(pref => (
+                  <div key={pref} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`pref-${pref}`}
+                      checked={newStaff.communication_preferences?.includes(pref) || false}
+                      onChange={() => handleCommunicationPrefChange(pref)}
+                      className="mr-2"
+                    />
+                    <label htmlFor={`pref-${pref}`} className="text-sm">
+                      {pref}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                These determine how staff can be contacted through the support system
+              </p>
+            </div>
+
             <div className="mt-8 flex justify-end gap-4">
               <button
                 onClick={() => {
@@ -1311,6 +1366,31 @@ const Staff = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="mt-6">
+              <label className={`block text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'} mb-2`}>
+                Communication Preferences
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {['Chat', 'Voice', 'Video'].map(pref => (
+                  <div key={pref} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`pref-${pref}`}
+                      checked={newStaff.communication_preferences?.includes(pref) || false}
+                      onChange={() => handleCommunicationPrefChange(pref)}
+                      className="mr-2"
+                    />
+                    <label htmlFor={`pref-${pref}`} className="text-sm">
+                      {pref}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <p className={`mt-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                These determine how staff can be contacted through the support system
+              </p>
             </div>
 
             <div className="mt-8 flex justify-end gap-4">

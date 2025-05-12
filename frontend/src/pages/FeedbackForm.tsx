@@ -127,7 +127,7 @@ const FeedbackForm = () => {
  
       await feedbackService.submitFeedback(feedbackData);
       alert('Feedback submitted successfully!');
-      navigate('/zz');
+      navigate('/');
     } catch (err: any) {
       console.error('Submission error:', err);
       setError(err.message || 'Failed to submit feedback');

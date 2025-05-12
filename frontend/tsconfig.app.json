@@ -18,5 +18,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "../admin/src/Dashboard.tsx", "../admin/src/AdminProfile.tsx", "../admin/src/Staff.tsx"]
 }

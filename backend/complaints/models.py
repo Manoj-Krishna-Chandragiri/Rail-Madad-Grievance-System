@@ -40,6 +40,7 @@ class Complaint(models.Model):
  
     def __str__(self):
         return f"{self.type} - {self.status}"
+
 class Feedback(models.Model):
     complaint_id = models.CharField(max_length=100)
     category = models.CharField(max_length=100)
@@ -69,6 +70,7 @@ class Staff(models.Model):
     joining_date = models.DateField(auto_now_add=True)
     expertise = models.TextField(blank=True, null=True)  # Stored as JSON string
     languages = models.TextField(blank=True, null=True)  # Stored as JSON string
+    communication_preferences = models.TextField(blank=True, null=True, default='["Chat"]')  # Stored as JSON string
     rating = models.FloatField(default=0)
     active_tickets = models.IntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now)  # Add default value

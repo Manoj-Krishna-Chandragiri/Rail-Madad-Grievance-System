@@ -1,5 +1,5 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { Bell, User } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 

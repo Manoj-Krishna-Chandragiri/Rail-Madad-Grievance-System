@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { User, Settings, Shield } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';  // Add theme support
-
+import { useTheme } from '../context/ThemeContext';  // Using relative path
 interface AdminData {
   full_name: string;
   email: string;
